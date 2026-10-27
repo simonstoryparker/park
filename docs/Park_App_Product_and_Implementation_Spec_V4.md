@@ -1,39 +1,55 @@
 # Park — Product & Implementation Specification
 
-**Version:** 4.0 — thumb-first parking interaction and visual design revision  
+**Version:** 4.4 — capture morph, routed parking animation, and desktop landscape
+
 **Updated:** October 26, 2026  
 **Platform:** iPhone-first progressive web app (PWA), also comfortable on a Mac  
 **Budget:** $0 for development, deployment and operation **within current free-tier limits**; no payment method or automatic paid upgrade  
-**Status:** Build-ready product/engineering specification; verify service limits before actual deployment
+**Status:** Implementation contract; production credentials, deployment, and physical-device verification are external release prerequisites.
+
+## 0. Agent handoff
+
+Build Park end to end from this document. The repository currently contains this specification only; scaffold the application, Worker, migrations, tests, and operating instructions. Preserve the product scope in Section 11. Complete the implementation and runnable local verification in one continuous pass; the phases in Section 12 are execution order, not requests to stop for approval.
+
+- **Authority:** This revision supersedes earlier Park specs. Requirements and acceptance criteria are binding; examples and the suggested file layout are illustrative. Apply repository/user instructions first. When a generic skill conflicts with an explicit Park behavior, follow Park and record the exception.
+- **Decision ownership:** Make ordinary implementation choices, document them briefly, and continue. Do not add product features or change the stack. Ask only when a missing answer would change user-visible behavior or require unavailable credentials/access; finish independent work while waiting.
+- **External setup:** Production requires a Google web client ID and allowed origins, a Cloudflare Free account, a D1 binding, and deployed HTTPS URLs. Read available configuration without printing secrets. Provide `.env.example` and precise setup commands; never fabricate credentials or silently substitute development auth in production.
+- **CLI-first setup:** Attempt external-service setup with supported CLI tools and existing authenticated sessions first (for example, Wrangler for Cloudflare resources, bindings, migrations, and deployment configuration). Inspect available tooling and permissions, then perform supported setup within the authorized scope and Free-plan constraints. Do not merely give the user commands the agent can run itself.
+- **Manual browser handoff:** When setup requires browser-only configuration, account creation, sign-in, consent, or another human action, have the user complete it in their own browser. Provide the direct page link, exact steps/values, and the non-secret result needed to continue. For CLI login, start the supported login flow and let the user finish its browser prompt. Never use screen sharing, remote desktop, computer-use tools, or automated takeover of the user’s browser for external-service setup. After identifying a CLI limitation, hand off the necessary manual step promptly rather than repeatedly trying UI workarounds; continue independent implementation while waiting, then resume CLI setup and verify the result. This restriction does not prevent automated tests of Park itself.
+- **Verification:** Use the gates in Sections 12–13. Report each as passed, failed, or not run, with evidence. Browser emulation does not satisfy actual iPhone/PWA or production OAuth checks. Do not claim deployment, security assurance, or measured user capacity from a local mock.
+- **Deliverables:** Working source and lockfile; local/production configuration; validated D1 migrations; automated checks; representative screenshots; a README covering setup, scripts, backup/restore, deployment, and quota limits; a concise completion report identifying external checks still required.
+
+Read Sections 2, 6–9 for domain and persistence rules, Sections 3–5 for UI behavior, then Sections 11–14 for scope and completion. Keep domain rules shared between client and server.
+
+```mermaid
+flowchart LR
+  Input[Capture or edit] --> Local[IndexedDB transaction]
+  Local --> UI[Update UI and feedback]
+  Local --> Queue[Durable mutation queue]
+  Queue --> API[Authenticated Worker]
+  API --> D1[Validate and commit in D1]
+  D1 --> Pull[Pull acknowledged changes]
+  Pull --> Cache[Update acknowledged cache]
+```
+
+Network failure leaves local work and the queue intact. Animation starts only after the local transaction commits.
 
 ## 1. Product vision
 
-**Park is a place to leave ideas without turning them into commitments.** Someone thinks, “I want to build this, but not until December.” They can type it, park it, and get back to what they were doing. The idea is safely stored in a recognizable *parking lot* and is brought back for reconsideration at the appropriate time.
+**Park is a place to leave ideas without turning them into commitments.** Capture an idea, see it enter a recognizable parking lot, and return to it when ready. Dates mean reconsideration, never deadlines.
 
-The **parking lot metaphor is the main product experience**, not a graphic added to a task list:
+The visual identity combines the top-down pixel-art language of **Xevious (1983)** with **1990s Silicon Valley**, especially Palo Alto and Mountain View: a small Peninsula world with modern iPhone usability. Sections 4.6–4.7 define the shared art direction, responsive desktop behavior, and how to use the concept images.
 
-- An **idea** is a **car**. In lists, it is readable text; when parked, it is also represented by a small visual car.
-- A **lot** holds parked ideas and can have a **name, time window, and optional space limit**.
-- **Parking** is a short, satisfying action: after an idea is saved, the Park button morphs into a car and drives toward the destination lot.
-- **Pulling out** means deliberately making the idea **Active**.
-- **Ready to revisit** means an idea can be reconsidered; it does **not** become an obligation.
-- **Archive** keeps history without suggesting failure. Do not force a junkyard metaphor on the Archive screen.
+The parking metaphor drives behavior: an idea is a car, a lot holds parked cars, parking confirms a save, and pulling out deliberately makes an idea Active. Archive preserves history without a failure metaphor.
 
-**Core promise:** Capture an idea with one action; see it go somewhere; forget about it safely until you choose to reconsider it.
+### Non-negotiable principles
 
-Park is not a conventional to-do manager. In particular, **lot dates and item revisit dates are not deadlines**. A temporary lot with a two-week window is a place intended for that period, not a requirement to finish everything in two weeks.
-
-### Non-negotiable design principles
-
-1. **Capture comes first.** Only idea text is required. Lot, timing, and capacity management are optional during capture.
-2. **Make the metaphor functional.** A collapsed lot shows occupied/empty parking spaces; a limit changes that view and parking behavior.
-3. **Low friction beats animation.** Never hold saving hostage to animation, an interpretation dialog, or organizational choices.
-4. **Dates tell you when to reconsider, not when work is due.** Never show overdue states, shame messages, or streaks.
-5. **Let organization emerge.** Anyone can create a useful lot from a sentence, without completing a multi-field form.
-6. **Local-first, private, and free.** Personal accounts and cross-device synchronization are required in V1, but capture and editing work offline after initial sign-in; no paid services or external AI APIs.
-7. **Trust matters.** Local save succeeds independently of sync; display pending/failed sync honestly, preserve edits, support export/import, and make dates predictable.
-8. **Keep it playful but calm.** The car animation is a moment of closure, not a game that demands attention.
-9. **Many free users by design.** Avoid unnecessary server requests, repeated polling, enormous media files, and vendor lock-in. Quota exhaustion must never erase local data.
+1. **Capture first:** Only text is required; save with one submission. Lot/date/size choices remain optional.
+2. **Functional metaphor:** Miniature lots show occupancy and empty spaces. Capacity affects parking; motion confirms where an idea went.
+3. **Local trust:** Commit locally before success feedback. Preserve offline edits, disclose pending/failed sync, and support export/import.
+4. **Personal and private:** Google accounts and cross-device sync are V1 requirements. Cached capture/editing work offline after first login.
+5. **Calm interaction:** No overdue states, guilt, streaks, or automatic activation. Animation never delays the next capture.
+6. **Free operation:** Use no paid services or external AI APIs. Minimize requests and storage; quota exhaustion must preserve local work.
 
 ## 2. Core model and terminology
 
@@ -45,7 +61,7 @@ Park is not a conventional to-do manager. In particular, **lot dates and item re
 - An account has one private built-in **General** lot. All records are scoped to the authenticated user on the server and in the local cache.
 - Initial Google login and first-device sync need internet. After a successful login, previously cached account data supports offline use. Logging in to a *new* device always requires internet.
 - Sign-out must not expose locally cached private data to the next user. If edits are not yet synchronized, block destructive cache clearing and offer **Sync first / Export pending work / Cancel sign-out**.
-- Display the account email/avatar in Settings, allow explicit sign-out, account/data export, and account deletion. Do not expose the email in public URLs or analytics.
+- Display the account email/avatar in Settings, allow explicit sign-out, account/data export, and account deletion. Do not expose the email in URLs or analytics.
 
 ### Ideas
 
@@ -56,6 +72,8 @@ Each idea is one stored item and has one lifecycle state:
 - **Archived:** Finished, dismissed, or kept for reference; not occupying a parking space.
 
 Each idea belongs to exactly **one lot** in V1. The built-in **General** lot is the default destination, so no lot decision is ever required to save. General is unlimited and cannot be deleted. The app can still show **Someday** as an automatic time grouping; *Someday is not a separate stored lot or required folder*. Its visual summary uses the same miniature renderer, while each idea retains its actual lot association. Grouping must not duplicate records or add to a lot's occupancy.
+
+Vehicle size and completion intent are independent. Add `kind: idea | task`, defaulting to `idea`; the details sheet lets the user explicitly change it. Only `task` records offer **Complete**, regardless of compact/truck size. Do not infer task intent from text, size, or date, and do not add a required choice during capture.
 
 An idea can have an optional personal **revisit date**. It may also inherit a not-before date from its lot. The original idea text is preserved even if a recognized time phrase is removed from the display title.
 
@@ -87,7 +105,7 @@ The combinations are deliberately flexible:
 - **Upcoming:** Start date is in the future. You may park ideas in it *before* it starts.
 - **Open:** It has started and its end has not passed, or it has no applicable time restriction.
 - **Ended:** Its window is finished; ideas stay safe and visible, and the app offers review options.
-- **Archived (independent of timing):** The user explicitly hides a lot from normal browsing. Its items are never automatically deleted.
+- **Archived (independent of timing):** Hide the lot and its Parked ideas from normal Lots, Someday, Ready, and ended-lot prompts. Keep them accessible in Archive. Active ideas remain in Now. Unarchiving recalculates readiness; never change item status or delete data merely because its lot is archived.
 
 Do not automatically archive, move, start, or delete ideas because a lot ends. An ended lot remains readable. New parking into it should prompt to extend/reopen it or choose another lot; never silently place a new idea in an ended lot.
 
@@ -95,7 +113,7 @@ Do not automatically archive, move, start, or delete ideas because a lot ends. A
 
 For a parked idea, define its **effective not-before date** as the **later of** its own `revisitOn` and its lot's `startOn` (ignoring missing values). If both are absent, the idea is **Someday** and does not resurface automatically.
 
-- When the effective date arrives, show the item in **Now → Ready to revisit**; its status remains **Parked** and it still occupies a space.
+- When the effective date arrives and the lot is not archived, show the item in **Now → Ready to revisit**; its status remains **Parked** and it still occupies a space.
 - A future lot start makes its parked ideas eligible for review **by default**, without copying that date into every item.
 - An item with its own later revisit date waits until that date even if the lot starts earlier.
 - Editing a lot's start date recalculates eligibility automatically; it does not rewrite each item's personal date.
@@ -111,41 +129,43 @@ Use four simple destinations:
 **Lots (default home)**
 
 - **Pinned bottom quick-capture composer** above a compact bottom navigation dock; never place the primary capture bar at the top.
-- Collapsible **visual parking lots** are the central browsing experience.
+- A compact Drop-off preview (the first five Now rows, with **View all**), followed by collapsible **visual parking lots**, is the home browsing experience.
 - Each lot header shows name, timing (if any), occupancy/capacity (if any), and a subtle upcoming/open/ended label.
-- Collapsed: a compact overhead parking lot illustration with car positions.
-- Expanded: accessible, readable idea rows/cards with actions.
+- Mobile collapsed: a compact overhead parking lot illustration with car positions; expanded: accessible idea rows/cards with actions.
+- Desktop: labeled lots in a generated landscape; selecting one opens a floating lot panel with the same readable rows/actions (Section 4.7).
 - General always exists and is the default parking destination.
 - Create Lot is reachable with one tap and through desktop keyboard shortcuts.
 - Optional filters by timing (Ready / Future / Someday) and search, without forcing users to reorganize ideas.
 
 **Now / Drop-off zone**
 
-- **Drop-off zone** is a compact readable list for near-term small tasks and ready-to-revisit items, *not* another miniature parking lot.
+- **Drop-off zone** is the list presentation on Now: separate **Active** and **Ready to revisit** sections, with each item shown once. There is no separate drop-off entity, date, or lifecycle state. Task rows offer Complete; idea rows offer Start or details.
 - **Active** items deliberately pulled out to work on.
 - **Ready to revisit** parked cars whose effective date has arrived; actions: Start, Later, Move, Archive.
 - Non-urgent prompt to review lots whose window ended. No overdue count.
 - Quick capture remains available here too.
 
+The Lots home preview repeats Now rows for convenience; it is not another record or occupancy count. Within Now, Active and Ready are disjoint. **Someday** is an alternate Lots view, not an additional list appended beneath the same expanded lots: switching to it groups only effective-undated Parked items with the shared renderer and preserves their actual lot IDs. Order mobile lots and the desktop map’s logical navigation by `sortOrder`, then ID; order Active by newest `activatedAt`, Ready by earliest effective date then `createdAt`, and expanded lot items by newest `createdAt`, with ID as final tie-breaker.
+
 **Archive**
 
-- Searchable history of archived items and optionally hidden lots; restore/move supported.
+- Searchable archived items plus archived lots and their contents. Restore/move supported. Normal search excludes archived records/lots; Archive search includes them.
 
 **Settings**
 
 - Signed-in Google account, sync health (`Synced`, `Changes waiting`, `Offline`, `Unable to sync`), sign-out, export/import, deletion, reduced motion, installation instructions, optional default lot preference.
 - Make privacy and data ownership clear: cloud copy is private to the account, local edits work offline, server free tiers have usage ceilings.
 
-Mobile uses thumb-reachable bottom navigation (Lots / Now / Archive) immediately beneath the pinned bottom composer, respecting iOS safe areas. When the software keyboard appears, keep the composer above the keyboard and hide or compress navigation; never let it cover the input. Desktop uses a slim sidebar and keyboard shortcuts. Avoid adding another dashboard merely to display counts.
+Mobile uses thumb-reachable bottom navigation (Lots / Now / Archive) immediately beneath the pinned bottom composer, respecting iOS safe areas. When the software keyboard appears, keep the composer above the keyboard and hide or compress navigation; never let it cover the input. Desktop uses the landscape and compact navigation controls, with no permanent sidebar; preserve keyboard shortcuts and access to every destination (Section 4.7). Avoid adding another dashboard merely to display counts.
 
 ## 4. Main screen details
 
 ### 4.1 Collapsed lot view: an actual tiny parking lot
 
-A collapsed lot is a **readable, compact top-down parking illustration**, not a collection of unlabeled emojis. Render with ordinary HTML/CSS and inline SVG for line markings/car silhouettes (do not depend on external images). The component should:
+A collapsed lot is a **readable, compact top-down pixel-art parking illustration**, following Section 4.6. Render with ordinary HTML/CSS and inline SVG on a shared logical pixel grid; bundle any supporting assets locally. The component must:
 
 - Show a **header** with lot name, time-window label, and `occupied / capacity` when limited.
-- Show **distinct parking spaces** and a small car silhouette or tile for every parked item represented.
+- Show **distinct parking spaces** and a recognizable pixel-art compact car or truck for every parked item represented.
 - Show **empty spaces** when the lot has a capacity; occupancy must match the sum of parking-space units used by **Parked** items, including Ready items.
 - Handle unlimited lots and the **Someday** grouping with the same top-down lot design. Fit visible cars by reducing *visual scale* as count grows, while maintaining compact/truck relative size. Use a minimum legible visual scale, then bounded preview plus `+N cars`; never imply a maximum. The count in the header remains authoritative.
 - For limited lots with many spaces, scale the drawing to the available width until a legibility threshold, then render a bounded preview (e.g., 6–8 spaces) and a clear `+N more` indicator. Never hide the true total or imply all spaces are visible.
@@ -157,9 +177,9 @@ The miniature lot does not need to allow dragging cars into spots. **Cars are a 
 
 ### 4.2 Expanded lot view
 
-Clicking a lot expands a list of its parked ideas. Show each item's title and concise timing (“Not before December,” “Ready to revisit,” “Someday”). Actions: **Start**, **Later**, **Move**, **Edit**, **Archive**. A subtle car glyph may appear on a card, but text takes priority. Ended-lot controls: **Extend**, **Move ideas**, **Keep as is**, **Archive lot**.
+On mobile, selecting a lot expands a list of its parked ideas. On desktop, selecting its map plot or label opens that list in a floating panel (Section 4.7). Show each item's title and concise timing (“Not before December,” “Ready to revisit,” “Someday”). Actions: **Start**, **Later**, **Move**, **Edit**, **Archive**. A subtle car glyph may appear on a card, but text takes priority. Ended-lot controls: **Extend**, **Move ideas**, **Keep as is**, **Archive lot**.
 
-Keep large touch targets and comfortable scrolling. On desktop, support arrow/tab navigation and Enter to expand. Preserve the expanded/collapsed state while navigating during a session; optionally store preference locally.
+Keep large touch targets and comfortable scrolling. On desktop, support keyboard navigation and Enter to open the lot panel, with Escape to close and focus returned to the originating lot. Preserve the expanded/collapsed state while navigating during a session; optionally store preference locally.
 
 ### 4.3 Quick capture
 
@@ -170,50 +190,102 @@ Keep large touch targets and comfortable scrolling. On desktop, support arrow/ta
 - Suggest an existing lot when the text confidently matches its name, but **never silently override a deliberate lot selection**.
 - If there is no explicit date, an idea in a future lot inherits the lot's start date for eligibility; in a permanent lot it is Someday.
 - Optional parsed date chips appear before saving. They are reversible and must not block a plain-text save.
-- Desktop: Enter to park; Shift+Enter for multiline; `/` focuses composer when not typing; Escape closes menus.
+- Desktop: use the same compact floating composer at the bottom center of the window, with bounded width rather than a full-width input. Retain the destination, vehicle-size controls, and Park interaction. Enter parks; Shift+Enter inserts a newline; `/` focuses the composer when not typing; Escape closes menus/panels.
 - Mobile: a persistent **bottom-anchored writing bar**, with a nearby 1-tap **Compact / Big idea** toggle (car/truck), destination chip, and morphing Enter/Park button, all reachable above the keyboard.
-- Vehicle size defaults to **Compact** until explicitly switched, so capturing stays one action. Toggle before or after saving without opening details.
+- Vehicle size defaults to **Compact** until explicitly switched, so capturing stays one action. Toggle before or after saving without opening details. The submit control uses a crisp pixel-art upward arrow from the same grid/palette as the vehicles, with accessible name **Park idea**; avoid a visually unrelated stock icon. Pointer hover may add a subtle highlight on devices that support hover; keyboard focus and touch pressed states provide equivalent feedback.
 - Immediately return focus after a successful save, ready for the next idea.
-- Confirm with quiet feedback (“Parked in Robotics · Undo”).
+- Confirm with quiet feedback (“Parked in Robotics · Undo”). Capture Undo is available for 10 seconds and archives the newly created idea with reason `dismissed`; it never hard-deletes text. Use a normal compensating mutation and preserve later edits if they conflict.
 
 **When something goes wrong:** If **local persistence** fails, retain the draft and show an actionable error; never play a fake success animation. If local storage succeeds but the server is unreachable, the idea is safely **parked on this device, waiting to sync**. Never say it has synced until the server acknowledges it.
 
-### 4.4 The parking animation (core V1 signature interaction)
+### 4.4 Capture morph and routed parking animation (core V1)
 
-1. User submits an idea.
-2. App persists it **successfully first** in the current account’s IndexedDB cache and queues a sync mutation, then updates the target lot count.
-3. The **Enter/Park button itself morphs** into the selected top-down compact car or truck; a separate text card must not become the car.
-4. The vehicle drives **along the side lane/edge of the screen** toward the target lot (or its visible destination chip if the actual lot is offscreen).
-5. It slips into an available space in the miniature lot, followed by a subtle one-time highlight and accessible “Parked” confirmation. Separate sync status shows if it is still waiting to reach the cloud.
-6. Composer is ready for another idea immediately; movement is non-blocking.
+**Reference:** The [capture-bar blueprint](references/retro-pixel-parking-app-ux-blueprint.png) illustrates pixel styling and the transformation/journey/arrival sequence. Exact frames, dimensions, hover effects, dashed trails, sparkles, and captions are illustrative. Written behavior takes precedence: clear the submitted draft and restore the composer after local commit, not after the car arrives. Capture Undo remains required by Section 4.3 even though the image calls it optional.
 
-**Implementation requirements:**
+#### Successful submission
 
-- Aim for **~450–700 ms** total; do not add a delay before users can capture again.
-- Prefer compositor-friendly `transform`/`opacity` animations and `requestAnimationFrame`/Web Animations API or a lightweight motion library. Avoid animating layout-heavy properties for every frame.
-- Measure start and target DOM rectangles using refs only when visible; on offscreen or unavailable targets, animate toward a stable destination chip, or use a simple shrink/fade. Never scroll the page involuntarily to chase the car.
-- Two intentional submissions must create exactly two records without interfering with editing; duplicate handling of a single submission must not create an extra record. Limit decorative concurrent effects to avoid lag.
-- If `prefers-reduced-motion` is enabled, use a brief fade or no movement; saving and feedback still work.
-- If the user navigates away mid-animation, the idea remains stored. No animation should control persistence or record status.
-- Use simple vector shapes, not imported car photos, sprites, or a 3D engine.
+1. Snapshot the submitted text, destination lot ID, vehicle size, and submit-button rectangle for this submission. Commit the idea and outgoing mutation together in account-scoped IndexedDB. On failure, retain the draft and show an error; do not morph or drive.
+2. After commit, update occupancy and clear only the submitted draft. Preserve any newer typing. Keep focus in the composer and immediately restore a usable arrow button; neither the morph nor the journey disables subsequent input/submission. Show the text confirmation and Undo immediately after commit; the ten-second Undo window starts then.
+3. At the button’s exact screen position, its pixel-art visual surface continuously transforms into the selected top-down compact car or truck. Show intermediate shape changes that connect arrow/button to vehicle; an abrupt icon replacement or crossfade alone is insufficient. Use a transient visual layer matched to the button’s bounds so the real semantic button can remain usable. The input text/card never becomes the car.
+4. The vehicle leaves the bar, joins the visible road/side lane, and drives toward **this idea’s actual lot**. Derive the path from current road connections, lot entrance, and parking geometry. Use turns and heading changes that follow the route, then align the vehicle with its assigned visible space. Do not use one arbitrary path for every lot or fly directly across buildings/water when a visible road route exists.
+5. For a visible, represented destination, show the vehicle entering its reserved visual space, then hand off to the static parked vehicle and briefly highlight the lot. Arrival adds visual feedback only; it does not repeat the local-save announcement or restart Undo. Keep pending/synced status separate. Driving is feedback for a completed local save, not another lifecycle state or cloud acknowledgement.
 
-**Definition of success:** The animation makes “I put that aside” feel satisfying **without becoming a speed bump**.
+#### Route, rendering, and interruption contract
+
+- **Shared geometry:** The renderer exposes a local route description: coordinate transform, visible road/lane segments and connections, lot entrance, target-space rectangle/orientation, and a layout revision. The desktop landscape generator supplies real scene geometry (Section 4.7); mobile uses its rendered lots and edge lane. Route in a common coordinate space and convert to the overlay/viewport correctly. No external maps, physics engine, traffic simulation, or network routing is required.
+- **Arrival target:** Reserve the new idea’s visual placement from the post-save layout; a truck needs its two-unit footprint. During visible arrival, suppress only that idea’s static sprite to avoid duplication; occupancy/counts remain correct throughout. Always restore rendering from current stored state on arrival, cancellation, Undo, or animation failure. Do not persist visual spot reservations or use them to enforce domain capacity.
+- **Unavailable/overflow destination:** If the lot is offscreen, collapsed without usable target geometry, hidden by a panel, or omitted by a bounded preview, drive along a visible lane toward the appropriate road exit when a meaningful route is available, then confirm the named destination. Otherwise use a visible destination chip/lot highlight with a brief fade, or just the named text confirmation if no destination target is visible. A soft-over-capacity arrival may use a represented overflow position or this fallback; never invent an empty capacity space. No animation may scroll, pan, zoom, or move the camera to chase a car.
+- **Layout changes:** Resolve geometry at animation start. Validate the captured origin against the current layout; if keyboard/viewport changes during the commit made it stale, remeasure the button or use the fallback. If scrolling, keyboard/viewport changes, rearrangement, or navigation invalidates it, safely recompute the remaining visible route or finish with the fallback; do not jump to stale coordinates or restart endlessly. The stored idea remains unaffected.
+- **Concurrency:** Each animation retains its submission’s lot/vehicle/idea identity; later edits to the composer must not retarget an earlier car. Two deliberate submissions create two records; duplicate handling of one submission creates one. Cap simultaneous decorative journeys (two is sufficient); additional captures receive immediate confirmation without waiting in an animation queue. Cancel an idea’s in-flight effect on Undo and derive its display from the resulting local state.
+- **Timing and technique:** Aim for roughly **450–900 ms** for morph + visible route + arrival, with an upper bound of **1,200 ms** for a longer route. Keep turns legible and speed changes smooth; use the exit fallback rather than a long offscreen journey. Prefer Web Animations API/CSS transforms and opacity for travel, with a lightweight SVG shape sequence for the morph. Use shared grid-aligned vehicle artwork and smooth translation/rotation; pixel art does not require choppy timing. Do not add a heavy motion library solely for this effect.
+- **Accessibility/reliability:** Reduced motion replaces morph/travel with an immediate state update or brief opacity transition and the same text confirmation. Keep the visual layer noninteractive and hidden from assistive technology; the input/button retain focus and labels. Animation exceptions, route failures, unmounts, and server outages never roll back or duplicate the saved idea. Park works equally through pointer, touch, and Enter. Park’s explicit morph/journey and timing requirements take precedence over generic motion-skill limits.
+
+**Definition of success:** Transformation, visible journey, and parking read as one coherent action while the next capture is already available.
+
+![Capture-bar reference: a floating input with vehicle-size toggle and arrow; arrow-to-car intermediate frames; a vehicle leaving for a lot while the composer remains usable; mobile and desktop examples. Frames and captions are illustrative.](references/retro-pixel-parking-app-ux-blueprint.png)
 
 ### 4.5 Thumb-first layout and front-end design bar (core V1)
 
-**Information above, actions below:** Scrollable content consists of the **Drop-off zone** near the top, then collapsible top-down **parking lots** and the Someday grouping. The persistent bottom action rail contains the composer above compact tab navigation. The rail respects `env(safe-area-inset-bottom)` and mobile viewport changes; on iOS when the keyboard opens, preserve visibility of the composer and collapse/hide the tab rail. Avoid obscuring focused text and avoid an enormous permanent footer.
+**Information above, actions below:** On mobile, scrollable content consists of the **Drop-off zone** near the top, then collapsible top-down **parking lots** (or the alternative Someday view). The persistent bottom action rail contains the composer above compact tab navigation. Desktop uses the generated landscape, floating composer, and panels in Section 4.7; it does not stretch this mobile rail across the window. The rail respects `env(safe-area-inset-bottom)` and mobile viewport changes; on iOS when the keyboard opens, preserve visibility of the composer and collapse/hide the tab rail. Avoid obscuring focused text and avoid an enormous permanent footer.
 
-**Drop-off zone interaction:** A row contains a small car hit target and readable task title. **Tap the car** to mark the task complete (archive with reason `completed`), then animate the car **driving away** and show a short **Undo** action; **tap the title/row text** to open details instead. These must be distinct hit areas and screen-reader actions. Do not mark a big idea complete merely by tapping its truck unless it is explicitly in a completable task context. If a parked-ready item is completed, its parking capacity is released; if the item was Active, it was already excluded from occupancy. Animate only after a successful local transaction and queue the synced change. Undo must be durable and work during pending sync.
+**Drop-off zone interaction:** Only rows with `kind: task` have a completion button. A row contains a small car hit target and readable task title. **Tap the car** to mark the task complete (archive with reason `completed`), then animate the car **driving away** and show a short **Undo** action; **tap the title/row text** to open details instead. These must be distinct hit areas and screen-reader actions. For `kind: idea`, tapping its vehicle opens details and never completes it. An explicitly marked task can be completed at either vehicle size. If a parked-ready item is completed, its parking capacity is released; if the item was Active, it was already excluded from occupancy. Animate only after a successful local transaction and queue the synced change. Undo remains available for 10 seconds, with its before-image and expiry persisted locally. It queues a compensating mutation even if completion has synced. Undo restores only the prior lifecycle fields (`status`, `activatedAt`, `archivedAt`, `archiveReason`) subject to current lot/capacity rules; if restoration is blocked, retain the before-image in Needs attention and offer destination/limit choices. Do not overwrite subsequent edits; offer explicit conflict resolution. After expiry, ordinary Restore remains available in Archive.
 
-**Vehicle semantics:** Every idea has a 1-tap, keyboard-accessible `Compact` or `Big idea` selector. Compact = 1 parking-space unit, truck = 2 *adjacent* units in a conceptual grid. This is a **visual/capacity size**, not a priority, estimate, or deadline. Changing size on an already parked idea immediately updates capacity; apply strict-capacity checks on device and server. If a strict lot cannot fit a newly enlarged truck, do not lose the idea: show an option to keep compact, move lots, or change capacity. Trucks and compact cars stay visually distinguishable at every zoom level. A one-space remainder cannot physically fit a two-space truck even if car-count limit would appear available.
+**Vehicle semantics:** Every idea has a 1-tap, keyboard-accessible `Compact` or `Big idea` selector. Compact = 1 parking-space unit, truck = 2 *adjacent* units in a conceptual grid. Adjacency is visual only: repack the miniature on changes, allow a truck to span a row, and never reject parking because a decorative grid is fragmented. Capacity is determined solely by total space units. This is a **visual/capacity size**, not a priority, estimate, or deadline. Changing size on an already parked idea immediately updates capacity; apply strict-capacity checks on device and server. If a strict lot cannot fit a newly enlarged truck, do not lose the idea: show an option to keep compact, move lots, or change capacity. Trucks and compact cars stay visually distinguishable at every zoom level. A one-space remainder cannot physically fit a two-space truck even if car-count limit would appear available.
 
-**Adaptive miniature lot renderer:** Use one shared renderer for time-bound lots, permanent lots, General, and Someday. Compute layout from number of parked cars and used-space units. Scale the **whole drawing** for many cars, retaining relative compact/truck sizes and aspect ratios; do not shrink individual cars inconsistently. At a legibility threshold, switch to a bounded representative preview and authoritative `N vehicles · M spaces occupied` text (plus total capacity when limited), not microscopically small tappable cars. Cars in the collapsed overview are decoration unless they retain a >=44×44pt accessible interaction target; use the expanded readable list for selecting individual ideas.
+**Renderer:** Section 4.1 defines the shared miniature renderer. Scale the whole drawing, preserve compact/truck proportions, and use accurate vehicle/space counts when a preview is bounded. Miniature cars are decorative; expanded rows provide individual actions.
 
-**Minimal, non-generic visual language:** One font family, documented spacing/color/radius tokens, restrained accents, consistent hierarchy. No greeting paragraphs, AI-generated inspirational copy, productivity scores, filler subheadings, card-within-card dashboards, random decorative icons, gratuitous gradients, fake content, or unnecessary badges. The parking illustrations and movement carry the app's character. Labels are brief: `Lots`, `Ready`, `Someday`, `Big idea`, `Park`, `Undo`. Prefer whitespace and typographic hierarchy over repeated containers.
+**Minimal, non-generic visual language:** One readable UI font family, with the pixelated `park.` wordmark as the sole typography exception; documented spacing/color/radius tokens, restrained accents, consistent hierarchy. No greeting paragraphs, AI-generated inspirational copy, productivity scores, filler subheadings, card-within-card dashboards, random decorative icons, gratuitous gradients, fake content, or unnecessary badges. The parking illustrations and movement carry the app's character. Labels are brief: `Lots`, `Ready`, `Someday`, `Big idea`, `Park`, `Undo`. Prefer whitespace and typographic hierarchy over repeated containers.
 
 **Apple-inspired interaction principles:** Place frequent actions in natural thumb reach; separate navigation from content; preserve familiar menu behavior and comfortable touch targets (~44×44pt); let contextual actions appear near their object; apply motion only to communicate state. Do not imitate Liquid Glass unnecessarily in a web app. Respect reduced motion, keyboard navigation, safe areas, screen readers, and focus. Avoid relying on hover or color alone.
 
-**Front-end acceptance process:** Implement a single exemplary mobile home screen *before* multiplying UI routes. Inspect actual iPhone-sized and desktop screenshots, and test with long labels, 0/1/30+ cars, 2-space trucks, keyboard open, low-vision zoom, offline state, and large text. Delete any UI copy or decoration that adds no information or affordance. Capture should be self-explanatory **without a tutorial paragraph**. Keep screenshots as visual regression baselines and fix alignment/overflow before declaring UI complete.
+**Front-end acceptance process:** Self-review one exemplary mobile home screen before adding routes. Use the screenshot/device matrix in Section 13; fix overflow/alignment and retain visual baselines. Remove filler copy and unrelated decoration; retain the sparse environmental cues required by Section 4.6. Capture must be understandable without a tutorial paragraph.
+
+### 4.6 Visual direction: coastal Silicon Valley in pixel art
+
+**Design goal:** Park feels like a carefully crafted 1990s Silicon Valley world seen through a classic top-down arcade game. Pixel art supplies its character; modern controls keep capture, reading, and editing simple.
+
+**Reference and precedence:** The [concept montage](references/pixel-coastal-task-manager-montage.png) is loose visual inspiration for atmosphere, palette, perspective, and composition. It is not a pixel-perfect layout or interaction contract. Follow this written specification wherever the image differs. Make independent choices about dimensions, spacing, controls, and responsive layout. Mockup captions, sample text/dates/counts, and depicted controls do not add requirements.
+
+- **World and palette:** Use blue water and a restrained coastline along the left edge of the Lots scene, with low-rise offices, paved lots, tree-lined streets, and understated 1990s suburban architecture. Establish these cues with sparse, reusable details; avoid the montage’s dense vegetation. Use a shared palette of water blues, greens, asphalt/building neutrals, light readable surfaces, and a few vehicle accents. Define exact color tokens during implementation and verify contrast.
+- **Pixel-art system:** Lots, compact cars, trucks, roads, buildings, trees, and shoreline share one top-down perspective, logical pixel grid, outline weight, palette, and lighting direction. Use crisp stepped shapes and restrained shading; avoid mixing painterly terrain, smooth vector cars, and unrelated icons. Xevious informs the visual language, not combat, scoring, or gameplay. Create original Park artwork rather than reproducing game assets.
+- **Brand and text:** Display the wordmark as lowercase **`park.`**, including the period, in distinctive pixel lettering. A locally bundled pixel font or custom grid-based SVG lettering is acceptable; give an SVG wordmark the accessible name “Park.” Use the readable UI family for all idea text, labels, dates, menus, and inputs. Never rasterize functional text or use a pixel font for body copy.
+- **Integrated controls:** Carry the scene’s colors, vehicle motifs, and restrained edge treatment into the composer, buttons, chips, navigation, menus, and sheets. Keep familiar control behavior and clear focus/pressed/disabled states. Use calm opaque surfaces behind text; scenery must not compete with content. Pixel styling must not shrink hit areas or force every control into a rigid square shape.
+- **Responsive restraint:** Lots are data-driven; surrounding scenery is decorative. Mobile keeps the compact scrolling lot presentation. Desktop generates the navigable landscape in Section 4.7. On narrow screens or at large text sizes, simplify the coastal margin and scenery before reducing usable content width, and use the mobile presentation when desktop panels no longer fit. The images alone do not require a map/list toggle or extra route.
+- **Function and motion:** Preserve the Lots/Now/Archive structure, readable Drop-off rows, bottom composer, capacity counts, and interactions in Sections 3–4.5. Decorative buildings, trees, boats, and roads never represent ideas or add tappable objects; only domain records determine occupancy. The montage’s pictorial drop-off does not replace the readable list or expand task-only completion. Animate only the specified user feedback; no ambient scrolling terrain, blinking scenery, or continuous water effects in V1.
+- **Implementation:** Use shared CSS/SVG components and grid-based art tokens rather than a screenshot background. Preserve crisp edges as the whole miniature scales; at small sizes, simplify detail and use the bounded-preview rule in Section 4.1 instead of rendering unreadable pixels. Bundle scene assets with the offline shell; no runtime image/font fetches or game engine. The reference PNG is documentation, not a production UI asset.
+
+![Concept montage: blue water and shoreline at left, top-down lots with compact cars and trucks, pixelated park branding, and bottom capture controls. Layouts and captions are illustrative.](references/pixel-coastal-task-manager-montage.png)
+
+### 4.7 Desktop: generated Peninsula landscape and floating panels
+
+**Design goal:** Use the wider viewport to explore a small pixel-art Silicon Valley peninsula. Extend the mobile visual identity and product rules through a spatial desktop layout; do not enlarge the phone screen or use a static dashboard background.
+
+**Reference and precedence:** The [desktop concept](references/pixel-park-map-dashboard.png) establishes the water/land composition, compact centered composer, labeled lots, and floating inspector. Its exact buildings, lot arrangement, icons, counts, and panel dimensions are illustrative. Written behavior and accessibility requirements take precedence. In particular, the mockup’s **Someday** plot does not create a stored lot or duplicate parked ideas: Someday remains the alternate grouping defined in Section 3.
+
+#### Layout and navigation
+
+- Keep blue water/coastline as a stable visual anchor along the left side; developed land extends to the right. Place the pixelated **`park.`** wordmark within the water area rather than a traditional header. On a constrained viewport, simplify this margin instead of squeezing functional content.
+- Arrange lots across land with roads/gutters separating them. Each plot has a readable, selectable label showing the actual lot name and authoritative vehicle/space counts, plus timing where applicable. Size and layout follow the shared compact/truck renderer and bounded-preview rules; never invent cars or parking capacity to fill the world.
+- Anchor the compact floating capture bar at the bottom center of the window, above the landscape, using the same controls, visual language, and save/morph behavior as mobile. Set a maximum width; reserve clearance so panels and map content do not cover it. Opening a lot does not silently change the capture destination; an explicit **Park here** action may select it and focus the composer.
+- Use one compact navigation group for **Lots**, **Now**, **Archive**, **Settings/account**, search, and **New Lot**; avoid a permanent sidebar or redundant toolbars. Lots remain directly selectable in the landscape. Keep the Drop-off preview readable; on desktop it may be a compact floating list, with **View all** opening Now. Navigation and labels must be discoverable without hover or memorized shortcuts.
+- When content exceeds the viewport, scroll the land horizontally (and vertically when necessary), using standard scrollbars/trackpad behavior and keyboard-accessible controls. The coastal anchor remains visible. Provide search/a lot finder that can reveal and focus a selected offscreen lot. No zoom feature, minimap, drag-only panning, or infinite-world engine is required. Do not shrink the entire map to fit every lot; use bounded previews within plots and render only visible/nearby scenery.
+
+#### Stable, data-driven generation
+
+- Generate plots from the current account’s non-archived lots, including General, using local records. Create/archive/restore/rearrange operations update the landscape after local commit and sync through the existing domain queue. Roads, sparse office buildings, trees, and other scenery adapt to plot boundaries; they never add records, capacity, or required interactions. No network request is needed to generate a scene.
+- Use `lot.sortOrder` as a stable nonnegative integer **layout slot**, also determining mobile order. Seed General in slot 0. Assign new lots the next unused slot after the maximum of stored and resolved display slots across all non-deleted lots, including archived lots; do not renumber existing lots on create/archive/delete. Archive hides a plot but retains its slot for restoration. For explicit rearrangement, offer an accessible **Move on map** action to choose a slot unused by both stored assignments and resolved display positions, including archived reservations; dragging is optional. Moving updates `sortOrder` as a normal versioned lot mutation. Reserve archived slots so restoration does not displace another lot.
+- Map slots into a fixed number of logical row bands and additional columns to the right. Choose/document the row count and plot/grid dimensions once for V1; viewport resizing changes the visible region, not stored slot assignments. Each cell reserves road/label clearance and supports the shared capacity-aware preview, including adjacent two-unit trucks. Item count or capacity changes may repack a plot’s interior but must not relocate unrelated lots.
+- Derive scenery deterministically from lot IDs/slots and shared art tokens. Reloading identical records yields identical lot/building placement. Avoid random generation on render or viewport-dependent global repacking. For concurrent slot collisions, first reserve every requested slot (including archived lots); the lowest lot ID wins each tie. Place remaining tied lots in ID order into the next unreserved slots and reserve those display positions too. This fallback is display-only: preserve every record and expose a rearrangement action without silently rewriting stored order. Filtering hides plots without repacking other slots. A newly discovered collision may relocate a conflicted lot through this fallback; this is the explicit exception to placement stability, not permission to repack unrelated plots.
+- Empty and sparse accounts still show General in a restrained coastal setting. At 50+ lots and 1,000+ ideas, preserve legible previews and stable navigation rather than filling the viewport with microscopic vehicles. The Someday alternative may use a generated summary scene, but must not alter actual lot positions, associations, or occupancy.
+
+#### Floating views and accessibility
+
+- Individual lots, idea details, Now/full lists, Archive, and Settings generally open in bounded floating panels/dialogs with the landscape visible behind them. Use the same data/actions as mobile. Each panel has a title, close control, readable scrolling content, and a viewport-constrained size; replace its content or provide Back for nested details rather than spawning unlimited windows. No window dragging/resizing system is required.
+- A browsing lot panel may be nonmodal so map navigation and capture remain available. Use modal dialogs for confirmations or focused edits, with correct focus containment and return. Escape closes the active dismissible layer without discarding an unsaved draft. Preserve drafts and scroll/selection when switching between responsive layouts.
+- Expose lots as named buttons in a logical list/order with keyboard focus, counts, and the same readable idea lists available without spatial interpretation. Decorative scenery is hidden from assistive technology and does not intercept pointer events. Revealing an offscreen lot is allowed after an explicit navigation action; parking animation alone must never pan the map.
+- At widths or zoom levels where the map and a useful panel cannot coexist, switch to the mobile list/sheet presentation. Responsive changes must not move ideas between lots, change capacity, lose selection/drafts, or require interaction with tiny pixel art.
+
+![Desktop concept: water and pixelated park wordmark on the left, labeled lots across a coastal office-park landscape, a compact bottom-centered composer, and a floating lot panel at right. Arrangement and sample content are illustrative.](references/pixel-park-map-dashboard.png)
 
 ## 5. One-sentence lot creation — a defining feature
 
@@ -256,19 +328,21 @@ Recognize: `starting [weekday/date]`, `from [date]`, `for N days/weeks`, `until 
 - Parse the **structured suffixes** first, then leave the remaining meaningful words as the proposed name. Do not remove “December” from a name unless it follows a recognized date connector.
 - Accept quoted names (`"Post Surgery" for 2 weeks starting Tuesday`) to make edge cases unambiguous.
 - If the phrase `for 2 weeks` is given **without a start date**, default to starting **today** only with a visible chip (`Starts today`); this is editable before creation.
-- `Tuesday` means the next occurrence of Tuesday on or after today; `next Tuesday` follows a **documented weekday rule** and its *exact date* is always displayed in the preview. Never rely on users to guess which Tuesday the parser chose.
+- `Tuesday` means the next occurrence of Tuesday on or after today; `next Tuesday` means the first Tuesday strictly after today (seven days later when today is Tuesday); its exact date is always displayed in the preview. Never rely on users to guess which Tuesday the parser chose.
 - Interpret `until Nov 20` as **inclusive** Nov 20 for display; store exclusive end Nov 21. With a duration, calculate `endExclusive = startOn + N calendar days`.
 - If the parsed end is not after the start, block **only that invalid schedule**, not ordinary name-only creation. Offer a clear edit chip.
 - Detect ambiguous dates (`11/12`, `next holidays`, unknown personal events) and do not auto-apply. No AI is required.
-- Parse numeric capacity as a positive integer (recommended V1 UI range **1–99**); reject `max 0` and negative limits with inline correction.
-- Prevent exact case-insensitive duplicate names or prompt to open the existing lot instead. Keep original capitalization for display.
+- Parse numeric capacity as an integer **1–99** in UI, imports, and API; reject `max 0` and negative limits with inline correction.
+- Trim and collapse name whitespace; use Unicode NFC plus case folding as `nameKey` for per-owner uniqueness, including archived lots. Preserve display capitalization. On duplicate creation, offer to open or unarchive the existing lot; do not create a second one.
 - If there is a parsing failure, the original input remains visible and editable; a fully manual edit-details fallback is always accessible.
+
+Additional date grammar: accept English month names with day and optional four-digit year, and ISO `YYYY-MM-DD`. An omitted year resolves to the first occurrence on or after today. Reject impossible dates and contradictory/repeated schedule or capacity clauses; retain the input for correction. Durations are positive integer days/weeks. If both duration and explicit end appear, require agreement rather than silently preferring one. Ignore only an unquoted standalone trailing `lot`; preserve it inside a quoted name.
 
 ### 5.3 Lot edit sheet
 
 Advanced editing should be optional and separate from the one-line flow. Controls: Name, Start (or no start), End (or no end), Capacity (or unlimited), **Soft vs Strict** capacity, optional accent. It should explain the inherited revisit behavior in one short sentence: “Ideas in this lot become ready to reconsider when this lot starts, unless an idea has a later date.”
 
-When editing an existing lot's dates, re-evaluate readiness live. When lowering capacity below current occupancy, **do not eject existing cars**; show `Over capacity · 6/4` and apply the rule only to future arrivals.
+When editing an existing lot's dates, re-evaluate readiness live. When lowering capacity below current occupancy or switching an over-capacity lot to strict, **do not eject existing cars**; show `Over capacity · 6/4` and apply the rule only to future arrivals.
 
 ## 6. Capacity limits: meaningful without blocking capture
 
@@ -290,25 +364,27 @@ To avoid race conditions, check strict occupancy **inside the same IndexedDB tra
 
 ### 7.1 Individual idea dates
 
-A parked item can be Someday or specify its own not-before date: tomorrow, next week, in 2 weeks, in December, explicit date, etc. The quick-capture parser only extracts a **confident revisit phrase**; “finish by Friday” is a deadline-like phrase, not an automatic revisit date.
+Support these revisit phrases: `tomorrow`, `next week`, `in N days/weeks`, `in [month]`, `after [month]`, `on [explicit date]`, and `someday`. Apply the same absolute-date grammar as Section 5.2. Parse only a trailing phrase; quoted text is literal. The quick-capture parser only extracts a **confident revisit phrase**; “finish by Friday” is a deadline-like phrase, not an automatic revisit date.
 
 - Store ISO **local calendar dates** (`YYYY-MM-DD`), not a UTC midnight timestamp.
 - “In December” when captured in October 2026 means `2026-12-01` with precision `month` and label `December 2026`.
 - “Next week” means next local Monday, labeled as a week.
 - “After December” means Jan 1 of the following year.
-- “Someday” means `null`, not a far-future timestamp.
+- “Someday” clears the personal date; inherited lot timing still applies. The Someday view contains only Parked ideas in non-archived lots whose effective date is null.
+- “In [month]” uses the first of that month in the current year if it is this month or later, otherwise next year. “After [month]” uses the first of the following month for that same resolved year.
+- **Later → Next month** means the first day of the next local calendar month. Later → Next week means the next Monday strictly after today. All date labels are derived from date + precision, not trusted imported prose.
 - Never guess the date of “after finals” or another personal event without a known date.
 
 ### 7.2 Ready and resurface behavior
 
-When `effectiveRevisitOn` is non-null and `effectiveRevisitOn <= today`, display the parked item in Now → Ready to revisit. No auto-activation. Its actions are:
+When `effectiveRevisitOn` is non-null and `effectiveRevisitOn <= today`, display the parked item in Now → Ready to revisit. No auto-activation. Its actions are (Complete is additionally available only for `kind: task`):
 
 - **Start** — status becomes Active and its occupied spaces are freed.
 - **Later** — Tomorrow / Next week / Next month / Pick date / Someday; stays Parked. The lot's start date still applies: choosing Someday clears only the item's personal date and does not cancel an inherited date.
 - **Move** — to a different lot; follow its start and capacity rules.
 - **Archive** — hide but preserve data.
 
-The app checks eligibility on opening, when returning to foreground, after date/lot edits, and on local day change while open. Do not depend on background tasks while PWA is closed.
+Use the device’s current local calendar date; travel can change eligibility, but stored dates never shift with time zone. The app checks eligibility on opening, when returning to foreground, after date/lot edits, and on local day change while open. Do not depend on background tasks while PWA is closed.
 
 ### 7.3 Ended lots
 
@@ -337,6 +413,7 @@ type Idea = {
   title: string;
   notes: string;
   status: ItemStatus;
+  kind: 'idea' | 'task';         // default idea; explicit completion intent
   vehicleSize: 'compact' | 'truck'; // compact=1 spot; truck=2 spots, editable
   lotId: string;                  // defaults to built-in General ID
   revisitOn: ISODate | null;     // individual not-before; does not include lot start
@@ -353,12 +430,13 @@ type Lot = {
   id: string;
   ownerId: string;               // server uses authenticated identity
   name: string;
+  nameKey: string;              // normalized per-owner unique key
   startOn: ISODate | null;       // optional inclusive start
   endExclusive: ISODate | null;  // optional exclusive end
   capacity: number | null;      // null = unlimited
   capacityPolicy: CapacityPolicy;
   accent: string | null;        // validated design token, not arbitrary CSS
-  sortOrder: number;
+  sortOrder: number;            // stable nonnegative layout slot; see Section 4.7
   isArchived: boolean;
   endedPromptDismissedFor: ISODate | null;
   createdAt: string;
@@ -366,9 +444,13 @@ type Lot = {
 };
 ```
 
-**Built-in General:** Use a stable reserved logical ID scoped to each owner (e.g. `general` within each user), unlimited and always open. Create/recover it during database initialization; block deletion/archival of the built-in lot. Avoid `lotId = null` once migrated, except while validating untrusted imports.
+**Built-in General:** Use literal `id = general` within each account. D1 lots use composite primary key `(owner_id, id)`; every lot reference and foreign key includes the owner. Local databases are account-specific, so `general` is unambiguous there. Seed it idempotently at login and local initialization. General is named General, unlimited, undated, non-archivable, and non-deletable; block changes to those properties. Avoid `lotId = null` once migrated, except while validating untrusted imports.
 
-**Derived, never persisted:** `occupiedSpaces` (sum of vehicle units), `vehicleCount`, `spacesRemaining`, `lotStatus`, `effectiveRevisitOn`, `isReady`, `isFull`, `isOverCapacity`. Compute from current records/local date. `effectiveRevisitOn` is the later of `idea.revisitOn` and `lot.startOn`; absent both means Someday. Archiving a lot does not alter its items without an explicit user choice.
+**Lifecycle fields:** New captures are Parked with null activation/archive timestamps and reason. Start sets Active and `activatedAt`; Archive sets Archived, `archivedAt`, and the chosen reason (default dismissed). Restore clears archive fields; Start/Restore preserve the last activation time unless entering Active again. Every change updates `updatedAt`; server versions, not these timestamps, order synchronization.
+
+**Timing derivation:** Ended takes precedence when `endExclusive <= today`; otherwise Upcoming when `startOn > today`; otherwise Open. Archival is a separate visibility flag.
+
+**Derived, never persisted:** `occupiedSpaces` (sum of vehicle units), `vehicleCount`, `spacesRemaining`, `lotStatus`, `effectiveRevisitOn`, `isReady` (Parked, effective date reached, non-archived lot), `isFull`, `isOverCapacity`. Compute from current records/local date. `effectiveRevisitOn` is the later of `idea.revisitOn` and `lot.startOn`; absent both means Someday. Archiving a lot does not alter its items without an explicit user choice.
 
 **Local indexes:** `ideas.status`, `ideas.lotId`, `ideas.revisitOn`, `ideas.createdAt`; `lots.sortOrder`, `lots.name`. For ~1,000 ideas per user, filtering an indexed local collection in memory is acceptable. Revisit query may derive from lot dates, so do not index only on `idea.revisitOn` and assume eligibility is complete.
 
@@ -376,43 +458,45 @@ type Lot = {
 
 ```sql
 users (id PRIMARY KEY, google_sub UNIQUE, email, created_at, deleted_at)
-lots (id PRIMARY KEY, owner_id, name, start_on, end_exclusive,
+lots (owner_id, id, name, name_key, start_on, end_exclusive,
       capacity, capacity_policy, accent, sort_order, is_archived,
-      ended_prompt_dismissed_for, version, updated_at, deleted_at)
+      ended_prompt_dismissed_for, created_at, version, updated_at, deleted_at,
+      PRIMARY KEY (owner_id, id))
 ideas (id PRIMARY KEY, owner_id, lot_id, original_text, title, notes,
-       status, vehicle_size, revisit_on, date_precision, date_label,
+       status, kind, vehicle_size, revisit_on, date_precision, date_label,
        created_at, updated_at, activated_at, archived_at,
        archive_reason, version, deleted_at)
 sessions (token_hash PRIMARY KEY, owner_id, expires_at, created_at)
 changes (seq INTEGER PRIMARY KEY AUTOINCREMENT, owner_id,
-         entity_type, entity_id, version, operation, changed_at)
-processed_mutations (owner_id, mutation_id, result, created_at,
+         entity_type, entity_id, version, operation, payload, changed_at)
+sync_devices (owner_id, id, registered_at, expires_at, PRIMARY KEY (owner_id, id))
+processed_mutations (owner_id, mutation_id, payload_hash, result, created_at,
                      PRIMARY KEY (owner_id, mutation_id))
 ```
 
-The DDL above is **conceptual**, not a ready-to-run migration: add real `NOT NULL`, foreign keys, `CHECK` constraints, proper SQL types, and validated migrations. Index hot access paths such as `(owner_id, seq)` for `changes`, `(owner_id, lot_id, status)` for `ideas`, `(owner_id, updated_at)` as needed, and `(owner_id, lower(name))` for lot-name uniqueness. Always include `owner_id` in authenticated reads/writes. Use D1 `EXPLAIN QUERY PLAN` to verify indexed queries rather than full-table scans. Avoid large text blobs, attachments, and server-side searching that scans all users' ideas.
+The DDL above is **conceptual**, not a ready-to-run migration: add real `NOT NULL`, foreign keys, `CHECK` constraints, proper SQL types, and validated migrations. Index hot access paths such as `(owner_id, seq)` for `changes`, `(owner_id, lot_id, status)` for `ideas`, `(owner_id, updated_at)` as needed, and unique `(owner_id, name_key)` for non-deleted lot-name uniqueness (including archived lots). Require the composite foreign key `ideas(owner_id, lot_id) → lots(owner_id, id)`. Include every domain field, including creation timestamps, in migrations and round-trip tests. Always include `owner_id` in authenticated reads/writes. Use D1 `EXPLAIN QUERY PLAN` to verify indexed queries rather than full-table scans. Avoid large text blobs, attachments, and server-side searching that scans all users' ideas.
 
-**Sync-only metadata:** each client has `deviceId`, `lastAppliedCursor`, queued idempotent mutations, and `lastSyncStatus`; records carry numeric **server-assigned `version`** for conflict detection. Use UUID-based mutation IDs. Do not derive sync order from device timestamps. Keep tombstones (deletion records) until a safe expiry/compaction strategy, and offer full snapshot resync if a client cursor is older than retained history. Treat sessions, mutation logs, and change logs as bounded metadata, not permanent archival history.
+**Sync-only metadata:** augment the domain models with `serverVersion` in local acknowledged records and API responses (D1 column `version`); do not mix it with the backup schema version. Each client has `deviceId`, `lastAppliedCursor`, queued idempotent mutations, and `lastSyncStatus`; records carry numeric **server-assigned `version`** for conflict detection. Use UUID-based mutation IDs. Do not derive sync order from device timestamps. Keep tombstones (deletion records) until a safe expiry/compaction strategy, and offer full snapshot resync if a client cursor is older than retained history. Treat sessions, mutation logs, and change logs as bounded metadata, not permanent archival history.
 
 ### Safe invariants and transitions
 
 - Each idea points to an existing lot (General fallback on safe import/migration).
-- Lot names are nonempty and unique case-insensitively within each account after trimming.
+- Lot names are nonempty and unique case-insensitively within each account after trimming. `sortOrder` is a nonnegative integer layout slot; duplicate slots from concurrent edits use the deterministic display fallback in Section 4.7 rather than dropping records.
 - `endExclusive` must be strictly later than `startOn` when both are set.
-- Capacity is null or a positive integer; strict capacity checked transactionally.
-- Deleting a lot with items requires **move items to another lot** or **archive whole lot**; never cascade-delete ideas.
-- If archived items are restored to Parked, destination capacity rules apply.
+- Capacity is null or an integer 1–99. Strict capacity checks only occupancy-increasing operations: create/restore to Parked, destination moves, or enlargement. Permit edits, departures, and size reductions when already over capacity. A same-lot edit excludes that item’s previous units before adding its new units.
+- V1 exposes Archive lot, not hard deletion of individual ideas/lots. Tombstones are reserved for confirmed Replace imports and cleanup; moving/restoring never cascade-deletes ideas. Account deletion hard-deletes all owned data.
+- Ordinary Restore always returns an archived item to Parked; only timely completion Undo restores its previous lifecycle state. Require an explicit visible destination if its original lot is archived or ended. Apply destination timing/capacity rules; do not silently unarchive/reopen the lot. Prevent new capture/moves/restores into archived lots until the user unarchives them.
 - All mutations show failure clearly and leave original content intact.
-- Preserve per-item timestamps, date labels, and original text in export/import.
+- Preserve original text, timestamps, and date/precision fields in export/import. Retain legacy date labels only for compatibility; always recompute displayed labels from validated date/precision.
 
 ## 9. Implementation architecture — free, cloud-synced and designed to scale
 
 ### 9.1 Final V1 stack
 
-| Layer | Recommended technology | Why |
+| Layer | Required V1 technology | Why |
 | --- | --- | --- |
 | App | React + TypeScript + Vite | Lightweight UI and shared types |
-| Styling | Tailwind CSS + custom SVG/CSS | Fast, responsive parking-lot views |
+| Styling | Tailwind CSS + custom pixel-art SVG/CSS | Shared grid, art tokens, and responsive controls |
 | Offline data | Dexie / IndexedDB | Immediate saves, queued offline mutations, cached browsing |
 | Authentication | **Google Identity Services (GIS)** | Free Google sign-in, no self-managed passwords or Firebase daily-active-user auth cap |
 | Session/API | **Cloudflare Worker** (TypeScript) | Same-origin HTTPS API, verified login, secure sessions, authorization |
@@ -422,58 +506,92 @@ The DDL above is **conceptual**, not a ready-to-run migration: add real `NOT NUL
 | PWA | vite-plugin-pwa | Installed iPhone app and offline shell |
 | Testing | Vitest, React Testing Library, Playwright, Worker/D1 integration tests | Detect sync, privacy, concurrency, and quota failures |
 
-**Why not Firebase + Firestore as the scaling-first default?** Firebase is easy to build, and is still a reasonable fallback if implementation simplicity matters more. But Firestore's standard free tier is currently **50,000 document reads/day, 20,000 writes/day and 1 GiB stored**. A Firebase Authentication **with Identity Platform** project on Spark has a **3,000 DAU** limit. Those limits make it a less attractive default for the stated goal of maximizing users on $0. Do **not** claim that every Firebase Auth configuration has the 3,000-DAU limit; it applies to the Identity Platform upgrade. Google Identity Services used directly does not depend on that Firebase-specific cap.
+Use GIS directly; do not substitute Firebase Auth/Firestore or another cloud stack. Keep provider access behind adapters.
 
 **Keep everything on provider free plans; do not enable paid billing or auto-upgrade.** A free `workers.dev` hostname is sufficient; buy a custom domain only if desired later. Even at $0, limits are not unlimited or guaranteed unchanged: quotas must be reviewed before deployment and monitored afterward.
 
 ### 9.2 Google accounts and login security
 
-1. Create a Google OAuth **web client ID**, register the actual HTTPS origin(s), and configure the Google Auth Platform consent/branding screen for an **External, In Production** app when ready to invite friends. Request only basic identity scopes (`openid`, `email`, `profile`); never add sensitive permissions without a new privacy review. Testing configurations can have user-count restrictions.
+1. Follow the CLI-first setup and manual browser handoff rules in Section 0. Create a Google OAuth **web client ID**, register the actual HTTPS origin(s), and configure the Google Auth Platform consent/branding screen for an **External, In Production** app when ready to invite friends. Request only basic identity scopes (`openid`, `email`, `profile`); never add sensitive permissions without a new privacy review. Testing configurations can have user-count restrictions.
 2. Use the official Google Identity Services sign-in button. Send the Google ID token to a same-origin `POST /api/auth/google` endpoint over HTTPS.
 3. **Verify the token on the server** using an established JWT/OIDC verification library compatible with Cloudflare Workers. Require Google's trusted issuer, the exact configured audience, valid signature (Google public keys, cached according to expiry), non-expired token, and other library-required checks. Treat Google `sub` as the stable identity key, **not the email**.
 4. Look up/create an internal user ID associated with that Google `sub`. Establish a server-managed session using a cryptographically random opaque token in a `Secure; HttpOnly; SameSite=Lax` cookie (hashed token in `sessions`, with expiration/revocation). Avoid storing auth bearer tokens in localStorage. Protect write endpoints with same-origin/Origin and CSRF protections; enforce an allowlisted Host and HTTPS. Rate-limit login and mutation traffic; validate all inputs.
 5. Logout revokes the server session and clears its cookie, while handling queued offline edits safely. Provide **sign out all devices** and **delete account and data** controls (bulk cleanup may be asynchronous as long as there is a reliable bounded process and user-visible status).
-6. Every API operation derives `owner_id` from the verified session; ignore incoming `ownerId` as authority. Test unauthorized requests, cross-account UUID enumeration, expired sessions, CSRF, and logout-with-pending-edits.
+6. Sessions expire after 30 days without sliding refresh. Protect login against login-CSRF with a server-issued, single-use nonce bound to the browser and Google ID token; protect authenticated writes with an Origin allowlist plus a session-bound CSRF token. Use `Cache-Control: no-store` for private responses. Do not log tokens or idea text.
+7. Cached offline access remains available after prior login until local sign-out/account switch; remote session expiry/revocation cannot erase an offline device. On a verified 401, pause sync and ask for the same Google account again without deleting local work. A network/quota error is not a 401. Offline sign-out must follow the pending-work export safeguards, hide/clear the local account cache, and explain that server-session revocation requires reconnection; offer online sign-out to revoke immediately.
+8. Account deletion requires a fresh Google authentication (within five minutes), explicit confirmation, and pending-work export first. Disable writes and revoke sessions before bounded cleanup; use a short-lived deletion-status-only credential for progress polling. Remove domain records, change logs, receipts, device metadata, and Google linkage before reporting completion. Stale sessions cannot recreate data. An explicit fresh sign-in after completed deletion may create an empty account with a new internal ID.
+9. Every API operation derives `owner_id` from the verified session; ignore incoming `ownerId` as authority. Test unauthorized requests, cross-account UUID enumeration, expired sessions, CSRF, and logout-with-pending-edits.
 
 **Do not build your own username/password system.** Google sign-in alone meets V1 account requirements and avoids password-reset email quotas and password breach liability. An optional managed email/password login can be researched later if demand justifies its free-tier constraints.
 
 ### 9.3 Offline-first sync and request minimization
 
-- **Single source of immediate UI truth:** account-scoped IndexedDB. Save idea/lot mutation + outgoing operation record in **one local transaction**; immediately display the parked car. No waiting for the network to animate.
-- **Server authoritative for cross-device consistency:** The Worker/D1 copy accepts idempotent mutations, validates ownership and version preconditions, and enforces strict lot capacity atomically. Client sends mutation UUID, entity ID, base version, and only changed fields.
-- **Batch outgoing edits:** `POST /api/sync` accepts a bounded list of mutations (e.g. 1–50), validates each, returns accepted versions/conflicts and remote changes. Use one request instead of many writes.
-- **Incremental sync:** `GET /api/sync?cursor=<server-sequence>` returns only this account's changes after the cursor, with pagination and an authoritative next cursor. Keep a compact change log indexed by `(owner_id, seq)`; if history is pruned beyond the cursor, return a `snapshot_required` response and replace the local *server-acknowledged portion* from a full, owner-scoped snapshot. Preserve local pending edits when doing so.
-- **Sync trigger:** after local changes (short debounce), on app startup/foreground, and on explicit user request. Suppress repetitive polling, background high-frequency refresh and useless requests when nothing has changed. A simple visibility-aware check once every several minutes is sufficient if the app stays open; optimize from measured usage, not assumptions.
-- **Conflict behavior:** Non-overlapping edits merge by entity. For two competing versions of the same entity, **never silently overwrite** one person's locally typed text. Prefer explicit conflict resolution/retry for text, and clear deterministic behavior for state/date changes. Idempotent mutation IDs prevent duplicate cars on retry. Use soft-cap visual warnings; strict capacity is confirmed atomically server-side. Preserve rejected changes locally with a visible “Needs attention” state.
-- **Deletion:** sync tombstones instead of assuming absence means deletion. Retain enough history for inactive devices and provide full-resync fallback; do not let tombstones and processed-mutation records grow without limit. Hard-delete via explicit account deletion workflow, not by normal Archive actions.
-- **Offline onboarding:** First Google sign-in cannot happen offline. After a successful login, cached data remains usable offline, including parking and local date checks. While offline, mark cloud sync as pending, never claim other devices are up to date. Avoid letting account A's cached data display to account B after switching accounts.
-- **Never require real-time infrastructure** (WebSockets, push channels, background cron, third-party AI, SMS). Eventual consistency on foreground/open is appropriate for Park, and dramatically conserves free usage.
+Account-scoped IndexedDB is the immediate UI source. Commit each local change and its queued mutation together; server acknowledgement is separate. The server validates ownership, versions, and strict capacity. Sync after local changes, startup/foreground, and explicit requests; no per-render/scroll calls, WebSockets, background polling, cron dependency, or external AI.
 
-**Suggested endpoints:**
+Changes to different entities apply independently. A same-entity base-version mismatch preserves both versions in **Needs attention**; offer **Keep mine / Use synced / Edit combined** against the current server version. Do not auto-merge same-entity edits in V1. Hard deletion uses tombstones; ordinary Archive never deletes data.
+
+#### Sync protocol and recovery contract
+
+Implement shared validated request/result types before UI integration:
+
+```ts
+type Mutation = {
+  mutationId: string; deviceId: string;
+  entity: 'idea' | 'lot'; entityId: string;
+  operation: 'create' | 'patch' | 'delete';
+  baseVersion: number; // 0 for create; otherwise last acknowledged server version
+  patch: Record<string, unknown>; // validated entity-specific allowlist; no owner/version
+};
+type MutationResult = {
+  mutationId: string;
+  outcome: 'accepted' | 'conflict' | 'invalid' | 'capacity' | 'blocked';
+  version?: number;
+  record?: (Idea | Lot) & { serverVersion: number }; // current record, when present
+  code?: string;       // stable machine-readable error code
+};
+```
+
+- **Queue order:** Keep an acknowledged base plus pending local overlay. Serialize changes to one entity and dependent lot→idea operations. Unsent edits may coalesce; once sent, a mutation ID/payload is immutable. Wait for its result before assigning the next operation’s base version. A conflict blocks dependent operations only; unrelated entities continue. A timeout means unknown outcome: retry the same ID, never manufacture acceptance.
+- **Atomic acceptance:** For each mutation, commit entity change, incremented version, immutable full-record change payload (or tombstone), and idempotency receipt together. An identical retry returns the original receipt; reuse of an ID with another payload is invalid. A batch has per-mutation outcomes, not all-or-nothing success. A transaction failure commits none of that mutation’s effects.
+- **D1 capacity:** Never read occupancy and then write in separate requests. Use a D1-supported transactional batch with SQL guards/triggers that enforce owner, base version, and capacity inside the write. Include races between moves, enlargements, lot-limit changes, restoration, and creates in integration tests. Do not assume an interactive transaction API exists; prove the chosen SQL mechanism with concurrent requests.
+- **Pull:** Return `{changes, nextCursor, hasMore}` with at most 200 immutable change payloads ordered by server sequence. The cursor is opaque and account-bound. `POST /api/sync` returns mutation results only; then pull using the last locally applied cursor. Apply each change page and cursor atomically; update the acknowledged base without replacing pending local text. Never advance a pull cursor from a push response.
+- **Snapshot:** Stage paginated records separately. Bind all pages to an owner sequence watermark; each page reads rows and watermark consistently in a transactional batch. If that owner changes during pagination, return `snapshot_restart` and restart staging. Activate only a complete snapshot, atomically set its cursor, then rebase pending work using normal conflict rules. Never clear pending work during a restart or full resync.
+- **Retention:** Retain changes/tombstones/receipts for 90 days. Register at most 20 devices per account, each with a server-generated ID and fixed 90-day registration expiry (no sliding renewal). Reject unknown/expired device IDs; registration always creates a new ID, never revives one supplied by a client. Expired slots can be removed/reused without retaining retired IDs. Before expiry, reconcile outstanding work; after expiry, require a fresh snapshot and explicit reconciliation of old pending work. Never automatically resend an old operation under a new device/mutation ID. Clean metadata incrementally on authenticated requests; no cron is required. Account deletion removes all metadata.
+- **Retry/status:** Debounce pushes 500 ms; cap batches at 50 mutations and 256 KiB, reduce them if CPU measurements require it. Foreground polling, if needed, is at most once per five minutes; stop it while hidden/offline. Retry transient failures with jittered exponential backoff from 2 seconds to 5 minutes and respect `Retry-After`. Pause automatic retries after repeated quota failures until next foreground/manual sync. `Synced` requires an empty queue, no unresolved conflicts, and a completed pull. Add `Needs attention` to Settings for conflicts.
+
+These are protocol requirements; choose concrete schema-validation and JWT libraries compatible with the deployed runtime and pin their versions.
+
+**Required endpoints:**
 
 ```text
+GET    /api/auth/challenge              Issue browser-bound login nonce
 POST   /api/auth/google                 Verify Google ID token; establish session
 POST   /api/auth/logout                 Revoke session and clear cookie
+POST   /api/auth/logout-all             Revoke all account sessions
+POST   /api/devices                     Register/reconcile a sync device
 GET    /api/me                          Return current user (or 401)
 GET    /api/snapshot                    Paginated owner-scoped lots + ideas
 GET    /api/sync?cursor=...             Pull changed rows, page via cursor
 POST   /api/sync                        Push idempotent mutation batch; return results
-GET    /api/export                      Optional server-side export; local export always available
+GET    /api/deletion                    Read authenticated deletion-job progress
+# Optional: GET /api/export; local export is mandatory
 DELETE /api/me                          Request authenticated account/data deletion
 ```
 
 Do not add an API call for every lot render, every animation frame, or every list scroll. All visual state and date parsing should work from IndexedDB.
 
-### 9.4 Current free-plan quotas (verified October 26, 2026)
+### 9.4 Free-plan planning limits (rechecked October 26, 2026)
 
 | Resource | Free tier relevant to Park | Main risk |
 | --- | --- | --- |
-| Cloudflare Workers | **100,000 Worker requests/day** | API/auth hits cap; dynamic requests fail until reset |
+| Cloudflare Workers | **100,000 requests/day; 10 ms CPU/request** | API/auth quotas or CPU limit can terminate requests |
 | Cloudflare static assets | **Free/unlimited static asset requests** | Free plan still has per-project size/build constraints |
 | Cloudflare D1 reads | **5,000,000 rows read/day** | Missing indexes or frequent full scans exhaust quota |
 | Cloudflare D1 writes | **100,000 rows written/day** | Chatty syncing, redundant indexes, mass rewrites |
 | Cloudflare D1 storage | **500 MB per database**, up to **10 databases** / **5 GB total** per Free account | Storage may cap the app before daily request quotas |
 | Google Identity Services | Basic Google sign-in; **no Firebase Identity Platform DAU cap applies** | Google sign-in branding/configuration/anti-abuse rules; do not promise unlimited login throughput |
+
+Planning sources: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), and [D1 limits](https://developers.cloudflare.com/d1/platform/limits/). Recheck before deployment; measure token verification and sync batches against the CPU budget as well as daily quotas.
 
 **Warning: hard caps matter.** Cloudflare reports that once free D1 daily read/write limits are exhausted, queries fail until midnight UTC; no automatic continuation. Workers Free requests can also be blocked at their cap. The goal is therefore not an impossible guarantee of unlimited free service: it is **maximize sustainable users and ensure local capture still works during outages/limits**.
 
@@ -481,16 +599,14 @@ Do not add an API call for every lot render, every animation frame, or every lis
 
 **Storage caution:** D1's **500 MB per database** cap is distinct from the 5 GB total per free account. Start with *one* indexed database and monitor headroom. Do not assume 5 GB is available in a single database or create ten databases prematurely. Document a migration/sharding plan if the product eventually reaches that scale; sharding adds complexity and does not increase the Workers account-wide request quota.
 
-### 9.5 Free-tier survival strategy (required V1)
+### 9.5 Free-tier operation (required V1)
 
-1. **Cache everything locally** and sync only deltas, not whole lists on every open.
-2. **Index by owner**, restrict query sizes, page snapshots and large sync responses, and measure D1 rows read/written per API action; keep the number of indexes purposeful.
-3. **Batch changes** (including item moves/edits), debounce network pushes, never poll in the background, and disable automatic retry storms after 429/503/quota failures. Retry later with capped exponential backoff and jitter.
-4. **Avoid media uploads** and per-user file storage for V1. Limit idea text/notes payload size and number of API operations per minute per user, with documented fair-use safeguards to prevent one client or bot from consuming the entire free tier. Make personal limits generous and transparent rather than surprising users.
-5. **Track quotas and alert yourself** (Workers requests, D1 row reads/writes, D1 database size, errors, per-user average). Measure percent used and forecast from a rolling week. Cloudflare dashboard/alerts first; no paid analytics service needed.
-6. **Degrade gracefully:** if server quota/outage blocks sync, show `Saved on this device · Syncing later`; still allow capture, reading cached lots, dates, and exports. Never discard queued operations, show `Synced`, or sign users out just because the API is temporarily down. A *new user/new device* cannot access uncached data while the service is unavailable; show a truthful explanation.
-7. **Back up/export and document migration:** version the domain and sync schema, provide one-click user export/import, and write scripts to migrate accounts to another database/provider. Do not tie business logic to a specific cloud SDK.
-8. **No surprise bills:** stay on free plans and do not attach payment methods or turn on pay-as-you-go as an automatic response to limits. Stop accepting cloud writes rather than silently spending money.
+- Render/search/parse locally; sync deltas in bounded batches. Index owner-scoped queries, page results, and measure rows read/written per endpoint.
+- Validate payload sizes and enforce documented per-account/login rate limits. Generous, visible fair-use limits must prevent one client from consuming the entire free tier. No media uploads.
+- Monitor requests, CPU, D1 reads/writes, database size, and errors with free provider tools. Forecast headroom from measured usage; no paid analytics dependency.
+- During server outages or quota exhaustion, display `Saved on this device · Syncing later`; preserve cached browsing, capture, exports, and queued edits. Do not show Synced or sign out because of an outage. New devices cannot retrieve uncached data until service returns.
+- Version domain/sync schemas; document backup and provider/database migration. Start with one D1 database; add no premature sharding.
+- Stay on Free plans without payment methods or automatic upgrades. Stop cloud writes rather than silently enabling billing.
 
 ### 9.6 Suggested source layout
 
@@ -502,15 +618,16 @@ src/
     auth/                Google sign-in, session UI, account management
     ideas/               IdeaCard, capture, lifecycle actions
     lots/                LotCard, MiniParkingLot, LotDetail, LotEditor
+    landscape/           Stable slot layout, scene generation, viewport navigation
     lot-parser/          Deterministic parsing and ambiguity warnings
     idea-parser/         Local date parser
-    animation/           ParkingAnimation, reduced motion, target registry
+    animation/           SubmitMorph, ParkingAnimation, geometry/route registry, reduced motion
     now/                 Active/ready/ended-lot review
     backup/              Versioned export/import validation
     sync/                Offline queue, batching, cursors, conflicts, retries
   domain/                Typed schemas and pure rules
   data/                  Dexie schema, migrations, account-scoped repositories
-  styles/                Design tokens, car and lot vectors
+  styles/                UI tokens, pixel grid/palette, shared vehicle/scene artwork
 worker/
   src/                   Auth/session validation, route handlers, sync engine
   migrations/            D1 schema/index migration SQL
@@ -550,15 +667,14 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 
 ### Data safety
 
-- **Local save succeeds before the animation**; cloud synchronization is a separate queued step. Show pending sync honestly and allow manual retry.
 - Cloud storage is not a substitute for export. Provide device JSON backup and restore even for signed-in users.
 - Account deletion must include user lots, ideas, sessions, sync metadata, and provider linkage, with progress and clear completion/error reporting.
-- Persist successfully **before** rendering the success animation or toast.
 - Use IndexedDB transactions for multi-record operations and strict-capacity checks.
 - On database errors/quota limits, retain drafts and offer a retry.
-- Export **versioned JSON** containing schema version, export date, settings (excluding device-specific fields if applicable), lots, and ideas.
-- Import validates every field, previews changes, offers **merge by IDs** or **replace**, and never silently overwrites a database.
-- Before a Replace import, offer or produce a fresh backup first when feasible.
+- Export JSON `{schemaVersion, exportedAt, sourceOwnerId, settings, lots, ideas, pendingWork}`. Include local proposed versions and conflict alternatives in `pendingWork` so an export before sign-out loses no text. Exclude credentials, session tokens, device IDs, cursors, and server mutation receipts.
+- Import always targets the current account. Validate schema/fields/references before writing; reject unsupported future versions. Map General to `general`; never trust imported ownership or versions. Same-account merge matches IDs and previews differences. Cross-account import assigns fresh UUIDs and remaps references. Duplicate names require explicit rename or mapping to an existing lot.
+- **Merge** adds new records and applies explicitly selected updates through normal version/capacity rules; no timestamp-based silent overwrite. Imported conflict alternatives become recoverable drafts, not automatically submitted server operations.
+- **Replace** means replacing account-wide domain data, including on other devices. Require online sync, resolve/export pending work first, produce a backup, and preview exact removals and replacements for confirmation. Generate bounded, resumable, individually idempotent operations; preserve General and never bypass strict capacity. It is not an all-or-nothing cloud transaction: show progress, preserve the backup, and resume safely after interruption. Pending work must never be erased by clearing the local database. Resolve strict-capacity violations in the preview before submitting.
 - Include a subtle, periodic local-backup reminder, because on-device browser data can be cleared. Do not promise permanent storage.
 - Test iOS installed PWA storage separately from Safari tab storage; don't claim they share a database unless verified.
 
@@ -588,19 +704,21 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 | Capture | One-field, one-submit capture with built-in General default |
 | Lots | Create, edit, expand/collapse, archive safely, and move cars |
 | One-line creation | Deterministic lot parser, editable date/capacity chips, manual fallback |
-| Theme | Shared top-down renderer for all lots and the Someday grouping; adaptive scaling; compact cars and two-space trucks |
-| Interaction | Bottom pinned composer; Enter-button-to-car side-lane parking animation; drop-off zone task completion with drive-off and Undo |
-| Visual QA | Strict no-fluff typography/copy rules; screenshot review and mobile safe-area/keyboard tests |
+| Theme | Coastal Silicon Valley pixel art (Sections 4.6–4.7), `park.` wordmark, shared renderer, stable generated desktop landscape, compact cars/two-space trucks |
+| Interaction | Bottom composer with continuous pixel-arrow-to-vehicle morph, geometry-routed journey/arrival, immediate reuse, and task drive-off/Undo |
+| Visual QA | Coherent pixel-art system, restrained scenery, readable UI typography; screenshot and mobile safe-area/keyboard checks |
 | Capacity | Unlimited/soft cap and optional strict cap, including server-side atomic checks |
 | Scheduling | Lot start/end, individual idea not-before date, resurfacing, ended-lot review |
 | Lifecycle | Parked / Active / Archived, postpone and restore |
-| Browsing | Lots-first home, Now, Archive, search |
+| Browsing | Lots-first home, Now, Archive, search; labeled desktop map navigation and floating panels, no permanent sidebar |
 | Accounts | Google sign-in for individual accounts, secure sessions, sign-out, account deletion |
 | Privacy | Every server operation owner-scoped; no shared content and no homemade passwords |
 | Sync | Offline local CRUD, batched idempotent sync, conflicts, pagination, transparent status |
 | Reliability | Export/import, no loss on outages or quotas, real-device offline testing |
 | Scalability | D1 indexes, bounded requests/queries, fair-use guards, quota monitoring, no billing |
 | Deployment | Installable iPhone + Mac PWA on free Cloudflare hosting |
+
+**Release boundary:** Phases 1–5 implement V1. Phase 6 is required before broad invitations and must ship a runnable benchmark/forecast harness, even if provider measurements await credentials. Distinguish local load measurements, projected daily usage, and actual provider measurements.
 
 **P1 / after the core is reliable:** optional guest mode (local-only then explicit merge into account), managed alternative login method if free, fancy car variants, advanced sorting/filtering, more sophisticated motion, invitations to share app. Do not build collaborative/shared lots without a separate permissions spec.
 
@@ -612,19 +730,19 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 
 Build typed domain, Dexie schemas, account-scoped local repositories, General lot, capture, basic lot/item lifecycle, local mutation queue, and local JSON backup. Stub the account ID in development only; do not deploy the stub auth.
 
-**Exit:** Capture → park → refresh/reopen → start/archive/restore; mutations persist and sync queue can be inspected. Every local write can be exported.
+**Exit:** `npm run typecheck`, `npm run test:unit`, and `npm run build` pass. Capture → park → refresh/reopen → start/archive/restore; mutations persist and sync queue can be inspected. Every local write can be exported.
 
 ### Phase 2 — Real accounts + secure cloud backend (before public sharing)
 
 Configure Google Identity Services, Worker static assets + `/api`, D1 migrations/indexes, secure cookie sessions, strict server authorization and abuse limits. Implement first sign-in, owner-scoped seed General, sync batch/changes/snapshot endpoints, conflict handling, and sign-out.
 
-**Exit:** Two different Google accounts cannot access each other's lots/ideas, even with direct API requests and known IDs. One account sees a newly parked idea on iPhone and Mac after sync. Local/offline edits synchronize later without duplicates or invisible loss.
+**Exit:** `npm run test:integration` passes against local Worker/D1, including concurrent strict-capacity requests, mutation retries, and snapshot restart. Two different Google accounts cannot access each other's lots/ideas, even with direct API requests and known IDs. One account sees a newly parked idea on iPhone and Mac after sync. Local/offline edits synchronize later without duplicates or invisible loss.
 
 ### Phase 3 — Thumb-first parking lot visual experience
 
-First approve an exemplary phone screen. Implement bottom pinned composer/navigation, shared adaptive mini parking lots and a Someday grouping, compact and truck vehicle sizing, space-weighted capacity, drop-off list, Enter-button-to-car side-lane animation and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Inspect iPhone and desktop screenshots and remove all decorative filler.
+Build and self-review an exemplary phone screen against Sections 4 and 13; fix it before expanding the UI. First establish the shared pixel grid, palette, vehicle artwork, readable UI type, `park.` wordmark, and sparse coastal environment from Section 4.6. Implement bottom pinned composer/navigation, shared adaptive mini parking lots and a Someday grouping, compact and truck vehicle sizing, space-weighted capacity, drop-off list, the continuous submit morph and geometry-routed parking in Section 4.4, and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Implement the desktop slot-based landscape, labeled navigation, centered composer, and floating views in Section 4.7. Inspect iPhone and desktop screenshots; retain the required coastal setting while removing unrelated filler and excess scenery.
 
-**Exit:** A 3-space lot displays correct occupancy; animation plays after a local commit; two devices competing for last spot produce a visible recoverable conflict, never lost text.
+**Exit:** `npm run test:e2e` passes on the local app; include task/idea tap behavior, Undo conflicts, and the screenshot matrix in Section 13. A 3-space lot displays correct occupancy; animation plays after a local commit; two devices competing for last spot produce a visible recoverable conflict, never lost text.
 
 ### Phase 4 — Natural-language lot creation and scheduling
 
@@ -640,16 +758,16 @@ Make iPhone keyboard UX polished, add install/offline shell, reliable restore/ex
 
 ### Phase 6 — Measured free-tier optimization (required before broad invitations)
 
-Create usage dashboard/alerts, load-test representative numbers of users, measure reads/writes per endpoint, build a quota-based forecast, fix full-table scans and excessive API calls, and document migration to additional D1 databases/provider if needed.
+Configure free provider-dashboard monitoring/available alerts, load-test representative numbers of users, measure reads/writes per endpoint, build a quota-based forecast, fix full-table scans and excessive API calls, and document migration to additional D1 databases/provider if needed.
 
-**Exit:** Repeatable load-test report for 100 / 1,000 / 10,000 simulated daily active accounts with realistic usage profiles, **predicted** daily Worker requests, D1 row reads/writes, storage growth, and clearly stated binding constraints. Do not claim tested user counts without performing the tests.
+**Exit:** `npm run test:load` produces a repeatable local load-test report for 100 / 1,000 / 10,000 simulated daily active accounts with realistic usage profiles, **predicted** daily Worker requests, D1 row reads/writes, storage growth, and clearly stated binding constraints. Do not claim tested user counts without performing the tests.
 
 ## 13. Acceptance tests (release gate)
 
 ### Core theme, parsing, and timing
 
 1. Plain text + Enter (or one mobile tap) parks an item immediately in the account's General lot; no mandatory settings or multiple screens.
-2. After an item is saved, the Enter/Park button morphs into a car and parks without blocking another capture; reduced-motion mode simplifies or removes travel.
+2. After local commit, the pixel arrow visibly transforms through intermediate shapes into the selected compact/truck, drives using current visible geometry toward the assigned lot, and enters its represented space. The composer is reusable before arrival; reduced motion and unavailable targets use the specified fallbacks.
 3. Collapsed mini lots and the Someday grouping scale visually while preserving compact/truck proportions and display true occupied/empty **space** counts; only Parked items (including Ready items) occupy spaces. Unlimited lots display a bounded preview.
 4. A truck uses two capacity units and visually spans two spaces; changing vehicle size recomputes capacity. Soft cap warns but permits over-capacity; strict cap prevents newly accepted overflow **server-side** even with concurrent devices.
 5. An item rejected from its strict lot after offline/concurrent conflict is preserved locally with a clear resolution action.
@@ -660,13 +778,30 @@ Create usage dashboard/alerts, load-test representative numbers of users, measur
 
 ### Thumb-first usability and visual quality
 
-- The bottom composer remains reachable when the iPhone keyboard is open, and respects safe-area insets; navigation collapses rather than covering the writing bar.
-- The Enter button morphs into a compact car or truck, travels along a side lane, and parks in the correct lot **after local save**. Offscreen destinations degrade gracefully; motion never blocks the next input.
-- The drop-off zone displays near-term/ready tasks as readable rows, not a lot; car-tap completes with drive-off animation and Undo, while title tap opens details.
-- A 3-space strict lot admits three compacts or one truck plus one compact but not two trucks, across devices and after offline sync.
-- Someday and larger lots use the same top-down vehicle rendering; scale down until the minimum readable size, then show compact preview and accurate counts, not tiny inaccessible tap targets.
-- Screenshot-review checkpoints exist for iPhone, desktop, long copy, reduced motion, big text, keyboard-open, empty/full/over-capacity and 30+ car states.
-- No nonfunctional filler text, decorative badges, fake statistics, unsolicited tutorial paragraphs, excessive gradients, or nested SaaS-style cards appear in the shipped UI.
+Verify Sections 4.3–4.7 at 390×844 and 1440×900, plus a narrow 320px viewport and 200% text zoom. Save screenshots for empty, full, over-capacity, 30+ vehicles, long text, offline, and reduced-motion states. Test keyboard-open composition on an actual iPhone: focused input remains visible, safe areas are respected, and navigation does not cover it. Verify car-tap completion only for explicit tasks and title-tap details separately. Inspect for overflow and filler; screenshots alone cannot prove animation, keyboard, or offline behavior.
+
+Visual direction passes when:
+
+- Lots, vehicles, environment, wordmark, and controls form one coherent pixel-art system with consistent perspective, proportions, and shading. Vehicles in motion match their parked versions.
+- The Lots scene conveys the coastal Silicon Valley setting without dense vegetation, busy scenery, or decoration that looks like stored ideas. Empty, full, and bounded-preview states remain distinguishable.
+- Pixel lettering is confined to `park.`; functional text stays selectable, legible, and high-contrast on calm surfaces. Focus indicators and at least 44×44 CSS-pixel touch targets remain usable.
+- At 320px width and 200% text zoom, scenery yields to content. The composer, lot labels/counts, and readable Drop-off rows remain visible and operable; reduced motion removes travel without hiding state changes.
+- The montage is used for direction, not as a screenshot background or layout checklist. No map/list navigation, ambient animation, or completion behavior is added solely because it appears in the image. Scene assets work offline.
+
+Capture animation additionally passes when:
+
+- Compact and truck submissions to two different visible lots originate at the submit button’s measured position, follow destination-specific lane/entrance geometry, turn and align correctly, and hand off without a duplicate static vehicle. Record the sequence; a final screenshot alone cannot prove the morph or route.
+- While one car drives, typing/submitting another idea preserves both texts, destinations, and sizes. The input clears after local commit, remains focused, and never waits for arrival. Capacity counts reflect stored records throughout.
+- Offscreen/occluded targets, bounded previews, soft overflow, scroll/resize/keyboard changes, navigation, in-flight Undo, and simulated animation exceptions leave data/counts correct and never move the camera automatically. Local-write failure shows no success effect; server failure retains the saved local idea and pending status.
+- Reduced-motion, touch, Enter, keyboard focus, and hover-capable pointer cases preserve equivalent save/confirmation behavior. Transient animation layers cannot intercept input or cause repeated screen-reader announcements. Verify on mobile and desktop.
+
+Desktop behavior additionally passes when:
+
+- At 1440×900, the water/wordmark anchor, horizontally arranged lots, bounded bottom-centered composer, and floating lot panel coexist without obscuring controls. No permanent sidebar or stretched mobile rail appears.
+- Create, archive/restore, explicit rearrangement, capacity changes, reload, and viewport resize preserve unrelated lot placements. Concurrent slot collisions preserve all lots and give the same display order on both devices after sync. Scenery is generated locally and remains stable for identical data.
+- A 50+ lot fixture remains navigable by pointer, keyboard, search/finder, and assistive technology. Offscreen lots can be revealed deliberately; saves/animations never pan the map. Compacts/trucks remain legible and authoritative counts match domain data.
+- All full-list/detail/settings flows are accessible in bounded desktop panels, including focus return, Escape, draft preservation, and responsive fallback at 200% zoom. The composer stays usable when a nonmodal lot panel is open.
+- The desktop image adds no duplicate Someday lot, fake counts, real-world geography requirement, or unrelated controls. Only written requirements determine functionality; all reference images remain documentation assets.
 
 ### Accounts, sync, privacy, and deletion
 
@@ -675,12 +810,12 @@ Create usage dashboard/alerts, load-test representative numbers of users, measur
 12. The Worker rejects invalid, expired, wrong-audience and wrong-issuer Google tokens; expired or revoked sessions fail, and sign out all devices invalidates existing sessions.
 13. Signed-out and unauthenticated API calls cannot reach private data; CSRF, origin and input-validation checks reject crafted writes.
 14. Two devices for the same Google account converge after local changes; duplicate mutation retries do not produce duplicates.
-15. Concurrent conflicting edits preserve both meaningful versions until explicit reconciliation or a safe deterministic merge.
+15. Same-entity stale-base mutations return conflicts, preserve both versions, and block dependent mutations until explicit reconciliation; independent entity changes proceed.
 16. When offline, capture and all local navigation still work; sync status says pending and the app retries later without losing changes.
 17. Simulated Worker/D1 429, 503, storage-limit, invalid cursor, and timeout failures do not erase local ideas, over-retry or produce false “Synced” messages.
 18. Sign-out does not expose account A's cached records to account B; pending edits are synced/exported or explicitly retained through a safe process.
 19. A user can export/import a versioned JSON backup, and can request deletion of their account and cloud data, with confirmation of completion.
-20. The user's initial sign-in on a fresh device requires network; cached signed-in accounts work offline afterward when the session's local authorization state permits it.
+20. Fresh-device sign-in requires network. Cached accounts work offline until local sign-out; a verified 401 pauses sync without deleting local edits and permits same-account reauthentication.
 
 ### Scaling and zero-dollar operation
 
@@ -692,22 +827,9 @@ Create usage dashboard/alerts, load-test representative numbers of users, measur
 26. The project documents measured traffic and storage per simulated daily active user, estimated quota headroom, and a migration/backup process.
 27. The build works on narrow iPhone screens and on Mac, including installation, refresh, PWA launch, and offline reopen.
 
-## 14. Implementation guidance for a coding agent
+## 14. Working conventions
 
-1. Treat **Version 4.0** as authoritative over earlier local-only Park specs. **Free Google accounts, private per-user data, and sync are V1 requirements**, alongside the visual parking lot and one-line lot creation.
-2. Do not interpret $0 as unlimited. Build for maximum efficient usage under free quotas; **continue working locally** if the API becomes unavailable.
-3. Prefer direct Google Identity Services + Cloudflare Worker + D1, rather than accidentally implementing Firebase Auth/Firestore because older draft instructions mentioned Firebase.
-4. Use only basic Google identity scopes and securely verify all login tokens server-side; never write a homemade password system or trust a client-provided user ID.
-5. All server reads and writes include verified owner authorization. Test cross-user access attacks, sessions, CSRF, and account deletion.
-6. Save locally first, queue idempotent mutations, sync in batches with an incremental cursor, and surface conflicts/errors honestly.
-7. Apply strict capacity in server-side atomic transactions, not just client-side; preserve rejected offline edits for manual resolution.
-8. Keep local-calendar date fields `lot.startOn`, `lot.endExclusive`, and `idea.revisitOn` separate. Use a mock clock in tests.
-9. Maintain recognizable **top-down lots** for every category including Someday, not generic cards with car emojis. Use a bottom writing bar, clear drop-off list, and Enter-button morphing car animation after local persistence.
-10. Keep server workload small: index by owner, avoid full scans, batch edits, restrict abusive clients, no WebSockets or repeated high-frequency polling.
-11. Service-worker caches may hold the public static shell but must never leak account-specific API data. Signing out with unsynced changes must be safe.
-12. Before inviting friends, test an actual iPhone PWA, two accounts, two devices, Google production OAuth configuration, and quota-exhaustion scenarios.
-13. Keep cloud concerns inside adapters so a future provider change or split across multiple databases can be completed without rewriting product UI.
-14. Never claim limitless free scaling, security perfection, guaranteed browser storage persistence, or that an account has synced unless acknowledged.
+Follow the handoff in Section 0 and the domain/sync contracts above. Do not use device timestamps to resolve sync order, substitute animations for durable writes, or claim external checks that were not run. The default stack is mandatory; provider adapters preserve future migration options.
 
 ### Required skills for comments and documentation
 
@@ -722,21 +844,15 @@ Before writing or editing **any comments or documentation** for Park, the coding
 
 Consult all four for every comments or documentation task, applying the guidance relevant to the content. A prose-only change does not require building UI or adding animation. Park's explicit product requirements take precedence over conflicting skill defaults; identify any conflict that affects the work. Keep comments focused on intent, constraints, and non-obvious decisions. Proofread the complete affected document for consistency before finishing. These paths identify the owner's local skill installation; on another machine, locate the same named skills and report any that are unavailable.
 
-### Open implementation decisions
+### Completion report
 
-Resolve these before implementing the affected behavior:
-
-- **Task completion:** Define how an idea enters a “completable task context,” including whether that needs an explicit model field. Section 4.5 currently relies on this distinction for truck tap-to-complete behavior.
-- **Archived-lot readiness:** Specify whether Parked ideas in an archived lot remain eligible for Now. Archiving currently hides the lot without changing its ideas, while readiness depends only on idea status and dates.
-- **General lot identity:** Reconcile the per-owner reserved logical ID `general` with the conceptual server table's global `id PRIMARY KEY`. Choose an owner-scoped composite key or a globally unique physical ID with a per-owner General mapping, and use it consistently in references and sync.
+Summarize what runs locally, the checks actually performed, any unresolved defects, and external release prerequisites. Include commands and screenshot/report paths. Missing production credentials or physical-device access leave those gates **not run**, not passed; they do not justify leaving independent application work unfinished. Do not deploy publicly, attach billing, or claim broad-release readiness merely because local tests pass.
 
 ## 15. Useful technical references
 
 - Apple Human Interface Guidelines — layout: https://developer.apple.com/design/human-interface-guidelines/layout
 - Apple Human Interface Guidelines — motion: https://developer.apple.com/design/human-interface-guidelines/motion
-- Apple WWDC 2025 — adopting the new iOS design: https://developer.apple.com/videos/play/wwdc2025/323/
 - Apple — install a website as a web app: https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios
-- Apple — web push overview (future only): https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers
 - MDN — storage quotas and eviction: https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria
 - Vite PWA plugin: https://github.com/vite-pwa/vite-plugin-pwa
 - Dexie: https://dexie.org/
@@ -744,14 +860,11 @@ Resolve these before implementing the affected behavior:
 - Cloudflare Workers Static Assets billing: https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/
 - Cloudflare D1 pricing: https://developers.cloudflare.com/d1/platform/pricing/
 - Cloudflare D1 limits (including **500 MB per free database**): https://developers.cloudflare.com/d1/platform/limits/
-- Cloudflare D1 free quota enforcement: https://developers.cloudflare.com/changelog/post/2026-09-01-d1-free-tier-limit-enforcement/
 - Cloudflare D1 indexes: https://developers.cloudflare.com/d1/best-practices/use-indexes/
 - Google Identity Services setup: https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid
 - Google ID token verification: https://developers.google.com/identity/gsi/web/guides/verify-google-id-token
 - Google OAuth testing/production limits: https://developers.google.com/identity/protocols/oauth2/production-readiness/overview
-- Firestore standard free limits (comparison): https://firebase.google.com/docs/firestore/pricing
-- Firebase Auth with Identity Platform DAU limit (comparison): https://firebase.google.com/docs/auth/
 
 ---
 
-**North star:** Park should feel like dropping an exciting, inconvenient idea into a real little parking lot. It is **saved immediately on-device, synced privately between your devices when available**, visually out of the way, and easy to bring back when its time comes — all without relying on an unlimited free cloud tier.
+**North star:** Save immediately on-device, sync privately when available, and make ideas easy to set aside and revisit without turning dates into deadlines.
