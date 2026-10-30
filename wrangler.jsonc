@@ -1,5 +1,5 @@
 {
-  "name": "park",
+  "name": "parker",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-26",
   "workers_dev": true,
@@ -11,7 +11,7 @@
     "run_worker_first": ["/api/*"],
   },
   "vars": {
-    "APP_ORIGIN": "https://park.simonstoryparker.workers.dev",
+    "APP_ORIGIN": "https://parker.simonstoryparker.workers.dev",
     "GOOGLE_CLIENT_ID": "884265171441-a77dcpcr9h77kltc0pm032i0khadm8ob.apps.googleusercontent.com",
     "DEV_AUTH": "false",
   },

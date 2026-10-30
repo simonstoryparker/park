@@ -4,11 +4,11 @@ Parker is a private, offline-first place to leave ideas. A compact car uses one 
 
 The implementation follows [the V4 product contract](docs/Parker_App_Product_and_Implementation_Spec_V4.md). React, TypeScript, Vite, Tailwind, Dexie, Google Identity Services, a Cloudflare Worker, and D1 are the application stack. Original SVG/CSS artwork ships with the offline shell.
 
-The product is named Parker. Existing `park` browser storage keys, cookies, and Cloudflare database name remain for compatibility with saved data. The GitHub repository and Pages path use `parker`. The parking verbs and idea statuses retain their existing meaning.
+The product is named Parker. Existing `park` browser storage keys, cookies, and Cloudflare database name remain for compatibility with saved data. The GitHub repository, Pages path, and Cloudflare Worker use `parker`. The parking verbs and idea statuses retain their existing meaning.
 
 ## GitHub Pages
 
-Open [Parker on GitHub Pages](https://simonstoryparker.github.io/parker/). Choose **Sign in with Google** to open [the account version of Parker](https://park.simonstoryparker.workers.dev/), which hosts the app and API together so sign-in and sync work without third-party cookies. The Google OAuth web client must authorize `https://park.simonstoryparker.workers.dev` as a JavaScript origin; no redirect URI is needed for the existing popup flow.
+Open [Parker on GitHub Pages](https://simonstoryparker.github.io/parker/). Choose **Sign in with Google** to open [the account version of Parker](https://parker.simonstoryparker.workers.dev/), which hosts the app and API together so sign-in and sync work without third-party cookies. The Google OAuth web client must authorize `https://parker.simonstoryparker.workers.dev` as a JavaScript origin; no redirect URI is needed for the existing popup flow.
 
 Or choose **Open my park** to store your park in this browser using IndexedDB without an account. Ideas, lots, dates, completion, Undo, JSON export/import, and offline installation work locally. **Settings** also includes the Google sign-in link. Browser and account parks are separate: to move existing ideas to an account, export a JSON backup from this browser’s Settings, sign in, then import it in the account park. No local data is removed by opening sign-in. Export backups regularly: clearing browser storage removes local data.
 
@@ -145,7 +145,7 @@ Store SQL backups privately. To rehearse recovery, create a separate empty local
 
 ## Cloudflare and Google setup
 
-The authenticated setup in this workspace created one D1 database, `park`, and applied the migrations remotely. Its non-secret database/account identifiers are in `wrangler.jsonc`. The account app and API are deployed at [park.simonstoryparker.workers.dev](https://park.simonstoryparker.workers.dev/), with development authentication disabled and a production signing secret stored in Cloudflare. No billing change was requested.
+The authenticated setup in this workspace created one D1 database, `park`, and applied the migrations remotely. Its non-secret database/account identifiers are in `wrangler.jsonc`. The account app and API are deployed at [parker.simonstoryparker.workers.dev](https://parker.simonstoryparker.workers.dev/), with development authentication disabled and a production signing secret stored in Cloudflare. No billing change was requested.
 
 On a new account, use:
 
