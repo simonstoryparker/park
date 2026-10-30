@@ -1,0 +1,51 @@
+{
+  "name": "park",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "build:pages": "tsc -b && vite build --mode pages",
+    "typecheck": "tsc -b --pretty false",
+    "test:unit": "vitest run tests/domain.test.ts tests/local.test.ts tests/auth.test.ts tests/backup.test.ts tests/landscape.test.ts",
+    "test:integration": "vitest run tests/worker.test.ts",
+    "test:e2e": "playwright test",
+    "test:pages": "npm run build:pages && playwright test --config playwright.pages.config.ts",
+    "test:load": "tsx scripts/load.ts",
+    "preview": "vite preview --host 0.0.0.0",
+    "worker:dev": "wrangler dev",
+    "db:migrate": "wrangler d1 migrations apply park --local",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "5.3.0",
+    "dexie": "4.2.1",
+    "dexie-react-hooks": "4.2.0",
+    "jose": "6.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261027.1",
+    "@playwright/test": "1.56.1",
+    "@tailwindcss/vite": "4.1.16",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "22.20.5",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "esbuild": "0.25.12",
+    "fake-indexeddb": "6.2.4",
+    "miniflare": "5.20261023.0-beta",
+    "prettier": "3.6.2",
+    "tailwindcss": "4.1.16",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vite-plugin-pwa": "1.1.0",
+    "vitest": "5.0.5",
+    "wrangler": "4.153.0"
+  }
+}

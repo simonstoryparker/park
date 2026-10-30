@@ -1,0 +1,7 @@
+GOOGLE_CLIENT_ID=
+APP_ORIGIN=http://localhost:5173
+DEV_AUTH=false
+CURSOR_SECRET=replace-with-a-random-secret-at-least-32-characters
+
+# Additional origins for local demos only (DEV_AUTH=true).
+DEV_ORIGINS=http://localhost:5174

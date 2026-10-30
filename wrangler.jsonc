@@ -1,0 +1,27 @@
+{
+  "name": "park",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-26",
+  "workers_dev": true,
+  "triggers": { "crons": ["0 * * * *"] },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "vars": {
+    "APP_ORIGIN": "http://localhost:5173",
+    "GOOGLE_CLIENT_ID": "884265171441-a77dcpcr9h77kltc0pm032i0khadm8ob.apps.googleusercontent.com",
+    "DEV_AUTH": "false",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "park",
+      "database_id": "74ac21e6-fb39-440c-bb65-37723ded50f7",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "account_id": "1d1c3d38dee91e562f9dfb1aa76e096c",
+}
