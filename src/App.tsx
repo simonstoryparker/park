@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { registerSW } from 'virtual:pwa-register';
 import { ParkDB, downloadBackup } from './data';
 import { SyncEngine, type SyncState } from './sync';
-import { localOnly, localAccount } from './runtime';
+import { localOnly, localAccount, cloudAppUrl } from './runtime';
 import { LandscapeArt } from './Landscape';
 import { worldLayout, chronologicalLots } from '../shared/landscape';
 import { MiniLot, Vehicle, Arrow, Wordmark, Scenery, CoastArt, ideaColor } from './art';
@@ -135,14 +135,22 @@ export function App() {
           <MiniLot lot={general('preview')} ideas={[]} />
         </div>
         {localOnly ? (
-          <button
-            onClick={() => {
-              localStorage.setItem('park-local-started', 'true');
-              setAccount(localAccount);
-            }}
-          >
-            Open my park
-          </button>
+          <>
+            <p>
+              <a className="cloud-sign-in" href={cloudAppUrl}>
+                Sign in with Google
+              </a>
+            </p>
+            <p className="help">Sign in to save and sync your park across devices.</p>
+            <button
+              onClick={() => {
+                localStorage.setItem('park-local-started', 'true');
+                setAccount(localAccount);
+              }}
+            >
+              Open my park
+            </button>
+          </>
         ) : (
           <GoogleLogin login={login} />
         )}
@@ -1351,6 +1359,16 @@ function Workspace({
               </div>
               {localOnly ? (
                 <>
+                  <h3>Google account</h3>
+                  <p>
+                    Sign in with Google to use Park across devices. To move this browser’s ideas,
+                    export a backup below, then import it in your signed-in park.
+                  </p>
+                  <p>
+                    <a className="cloud-sign-in" href={cloudAppUrl}>
+                      Sign in with Google
+                    </a>
+                  </p>
                   <h3>Storage</h3>
                   <p>
                     Saved in this browser. Your ideas stay on this device and are not synced to

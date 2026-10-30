@@ -700,6 +700,8 @@ p {
 }
 .panel {
   position: fixed;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   inset: 95px 26px auto auto;
   width: 430px;
   max-width: calc(100vw - 32px);
@@ -1981,6 +1983,25 @@ pre {
 .app,
 .land {
   background-image: url('../public/terrain.svg');
+}
+.cloud-sign-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  background: #28543e;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+.cloud-sign-in:hover {
+  background: #1e422f;
+}
+.cloud-sign-in:focus-visible {
+  outline: 3px solid #346d83;
+  outline-offset: 4px;
 }
 .coast .wordmark {
   top: 35px;

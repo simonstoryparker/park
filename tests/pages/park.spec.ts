@@ -11,6 +11,9 @@ test('Pages captures, persists, exports/imports and reopens offline without an A
   });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('./');
+  await expect(
+    page.getByRole('link', { name: 'Sign in with Google', exact: true }),
+  ).toHaveAttribute('href', 'https://park.simonstoryparker.workers.dev/');
   await expect(page.getByText('No sign-in or cloud sync.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Open my park', exact: true }).click();
   const input = page.getByRole('textbox', { name: 'Idea to park' });
@@ -32,6 +35,9 @@ test('Pages captures, persists, exports/imports and reopens offline without an A
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await input.fill('/settings');
   await input.press('Enter');
+  await expect(
+    page.getByRole('link', { name: 'Sign in with Google', exact: true }),
+  ).toHaveAttribute('href', 'https://park.simonstoryparker.workers.dev/');
   await expect(page.getByRole('button', { name: 'Sync now', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toHaveCount(0);
   const downloadPromise = page.waitForEvent('download');
