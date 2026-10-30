@@ -1303,27 +1303,27 @@
   {
    "viewport": "desktop",
    "width": 1440,
-   "fold": "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/desktop-fold.jpg",
+   "fold": "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/desktop-fold.jpg",
    "pages": [
-    "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/desktop-page-01.jpg"
+    "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/desktop-page-01.jpg"
    ],
    "film": []
   },
   {
    "viewport": "tablet",
    "width": 768,
-   "fold": "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/tablet-fold.jpg",
+   "fold": "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/tablet-fold.jpg",
    "pages": [
-    "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/tablet-page-01.jpg"
+    "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/tablet-page-01.jpg"
    ],
    "film": []
   },
   {
    "viewport": "mobile",
    "width": 390,
-   "fold": "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/mobile-fold.jpg",
+   "fold": "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/mobile-fold.jpg",
    "pages": [
-    "/Users/simonparker/Documents/GitHub/park/.taste-skill/single-line-after/mobile-page-01.jpg"
+    "/Users/simonparker/Documents/GitHub/parker/.taste-skill/single-line-after/mobile-page-01.jpg"
    ],
    "film": []
   }

@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { it, expect } from 'vitest';
-import { ParkDB } from '../src/data';
+import { ParkerDB } from '../src/data';
 import { planImport, mergeImport, collectRecovered } from '../src/backup';
 import { general, type Idea } from '../shared/domain';
 const idea = (ownerId: string, lotId = 'general'): Idea => ({
@@ -24,8 +24,8 @@ const idea = (ownerId: string, lotId = 'general'): Idea => ({
   serverVersion: 17,
 });
 it('imports across accounts with fresh IDs, General mapping and no trusted server versions', async () => {
-  const source = new ParkDB(crypto.randomUUID()),
-    target = new ParkDB(crypto.randomUUID());
+  const source = new ParkerDB(crypto.randomUUID()),
+    target = new ParkerDB(crypto.randomUUID());
   try {
     await source.init();
     await target.init();
@@ -58,8 +58,8 @@ it('imports across accounts with fresh IDs, General mapping and no trusted serve
   }
 });
 it('round-trips an archived lot with parked contents without revealing it locally', async () => {
-  const source = new ParkDB(crypto.randomUUID()),
-    target = new ParkDB(crypto.randomUUID());
+  const source = new ParkerDB(crypto.randomUUID()),
+    target = new ParkerDB(crypto.randomUUID());
   try {
     await source.init();
     await target.init();
@@ -83,7 +83,7 @@ it('round-trips an archived lot with parked contents without revealing it locall
   }
 });
 it('rejects future schemas and extracts recoverable domain text without credentials', async () => {
-  const d = new ParkDB(crypto.randomUUID());
+  const d = new ParkerDB(crypto.randomUUID());
   try {
     await d.init();
     await expect(planImport(d, { ...(await d.backup()), schemaVersion: 999 })).rejects.toThrow();

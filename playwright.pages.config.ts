@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: 'tests/pages',
   workers: 1,
   use: {
-    baseURL: 'http://127.0.0.1:4173/park/',
+    baseURL: 'http://127.0.0.1:4173/parker/',
     launchOptions: process.env.PARK_CHROMIUM_PATH
       ? { executablePath: process.env.PARK_CHROMIUM_PATH }
       : undefined,
@@ -19,7 +19,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run preview -- --mode pages --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173/park/',
+    url: 'http://127.0.0.1:4173/parker/',
     reuseExistingServer: !process.env.CI,
   },
 });

@@ -22,7 +22,7 @@ The idle composer is one line; repeated per-row size buttons and duplicate scene
 | Final affected browser checks | 6 passed | Preferences/protected entry points, chronological 50-lot/1,000-item fixture, natural capture after the header/composer adjustments |
 | `npm run build` | Passed | TypeScript, Vite and generated PWA shell |
 | `scripts/single-line-visual.ts` | Passed at 320/390/768/1440px | Empty/populated/help/33-item states; zero page errors or horizontal overflow; header navigation receives pointer hits after scrolling |
-| Design inspector | 0 failures, 2 warnings | Authenticated isolated local fixture at 1440/768/390px; warnings retain Park’s required paper/coastal palette |
+| Design inspector | 0 failures, 2 warnings | Authenticated isolated local fixture at 1440/768/390px; warnings retain Parker’s required paper/coastal palette |
 | Source design lint | 0 failures | Existing login eyebrow and legacy shadow declarations remain warnings; floating composer/panels keep intentional shadows |
 | `git diff --check` | Passed | Tracked spec whitespace checked |
 
@@ -41,15 +41,15 @@ The normal inspector initially measured sign-in. The authenticated inspector use
 
 The full matrix uses `single-line-{empty,populated,help,many}-{320,390,768,1440}.png`. The repeatable visual script uses a cached local fixture with API 503 responses and reduced motion. It verifies local functionality during simulated unavailability; it is not a production outage test.
 
-Retained direction: Editorial greeting, seed 1847775643, with Park’s existing palette/type and explicit coastal map requirements taking precedence over generic dashboard composition. No redraw, new photos, clips or licence obligations.
+Retained direction: Editorial greeting, seed 1847775643, with Parker’s existing palette/type and explicit coastal map requirements taking precedence over generic dashboard composition. No redraw, new photos, clips or licence obligations.
 
 ROUND 1
 Seen in one second: a coastal parking world with a thought composer.
-Idea (one sentence): Park’s cars connect stored thoughts to readable rows and a single action line.
+Idea (one sentence): Parker’s cars connect stored thoughts to readable rows and a single action line.
 Live thing: type a thought or command, inspect its interpretation, and commit immediately on device.
 Layout words by section: navigation=quiet compact group / landscape=dated lots / drop-off=every title / composer=one line.
 Scores: design 7.0 · usability 7.0 · creativity 8.0 · content 8.0 → overall 7.3.
-Caps applied: app-screen rules and Park’s required SVG art replace landing-page imagery/motion rules.
+Caps applied: app-screen rules and Parker’s required SVG art replace landing-page imagery/motion rules.
 Top three problems (most visible first), each with the screenshot it shows in and the fix:
 1. Tablet left a large empty right side; the final tablet layout uses two columns.
 2. Idle capture used an extra hint row; the final composer puts discovery in the placeholder and shows interpretation only while needed.
@@ -57,11 +57,11 @@ Top three problems (most visible first), each with the screenshot it shows in an
 
 ROUND 2
 Seen in one second: thoughts have readable names in the park, with one clear input.
-Idea (one sentence): Park’s cars connect stored thoughts to readable rows and a single action line.
+Idea (one sentence): Parker’s cars connect stored thoughts to readable rows and a single action line.
 Live thing: capture, commands, task completion, and immediate local feedback.
 Layout words by section: navigation=compact / landscape=responsive coastal bands / drop-off=readable list / composer=single line.
 Scores: design 7.5 · usability 8.0 · creativity 8.0 · content 8.0 → overall 7.8.
-Caps applied: app-screen and explicit Park art conventions as above.
+Caps applied: app-screen and explicit Parker art conventions as above.
 Top three remaining tradeoffs (most visible first), each with the screenshot it shows in and the decision:
 1. Sparse desktop accounts retain open terrain (`single-line-empty-1440.png`); this preserves honest occupancy and the requested world, without fake lots.
 2. A large Drop-off list pushes subsequent map bands down (`single-line-many-390.png`); search and the full-list destination remain available, and every item is retained.

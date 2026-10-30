@@ -36,7 +36,7 @@ export type Undo = {
   expires: number;
   issue?: string;
 };
-export class ParkDB extends Dexie {
+export class ParkerDB extends Dexie {
   ideas!: Table<Idea, string>;
   lots!: Table<Lot, string>;
   queue!: Table<Pending, string>;
@@ -376,7 +376,7 @@ export function downloadBackup(data: unknown) {
   );
   const a = document.createElement('a');
   a.href = url;
-  a.download = `park-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `parker-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

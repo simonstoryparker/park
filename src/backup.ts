@@ -10,7 +10,7 @@ import {
   type Idea,
   type Lot,
 } from '../shared/domain';
-import { ParkDB } from './data';
+import { ParkerDB } from './data';
 const schema = z.object({
   schemaVersion: z.literal(1),
   exportedAt: z.string(),
@@ -28,7 +28,7 @@ export type ImportPlan = {
   pendingWork: unknown;
   settings: Record<string, unknown>;
 };
-export async function planImport(db: ParkDB, raw: unknown): Promise<ImportPlan> {
+export async function planImport(db: ParkerDB, raw: unknown): Promise<ImportPlan> {
   const backup = schema.parse(raw);
   const same = backup.sourceOwnerId === db.owner;
   const existing = await db.lots.toArray();
@@ -111,7 +111,7 @@ export async function planImport(db: ParkDB, raw: unknown): Promise<ImportPlan> 
     settings: backup.settings,
   };
 }
-export async function mergeImport(db: ParkDB, plan: ImportPlan, includeUpdates: boolean) {
+export async function mergeImport(db: ParkerDB, plan: ImportPlan, includeUpdates: boolean) {
   const existingLots = new Set((await db.lots.toArray()).map((l) => l.id));
   const existingIdeas = new Set((await db.ideas.toArray()).map((i) => i.id));
   await db.transaction('rw', [db.ideas, db.lots, db.queue, db.meta, db.undos], async () => {
@@ -140,7 +140,7 @@ export async function mergeImport(db: ParkDB, plan: ImportPlan, includeUpdates: 
   });
 }
 
-export async function replaceImport(db: ParkDB, plan: ImportPlan) {
+export async function replaceImport(db: ParkerDB, plan: ImportPlan) {
   if (!navigator.onLine || (await db.queue.count()))
     throw new Error('Sync and resolve pending work before replacing account data.');
   const targetIdeas = new Set(plan.ideas.map((i) => i.id)),

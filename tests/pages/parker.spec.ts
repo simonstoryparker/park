@@ -49,7 +49,7 @@ test('Pages captures, persists, exports/imports and reopens offline without an A
   // A fresh browser storage partition restores the same park from its JSON backup.
   const fresh = await context.browser()!.newContext({ viewport: { width: 390, height: 844 } });
   const restored = await fresh.newPage();
-  await restored.goto('http://127.0.0.1:4173/park/');
+  await restored.goto('http://127.0.0.1:4173/parker/');
   await restored.getByRole('button', { name: 'Open my park', exact: true }).click();
   await restored.getByRole('button', { name: 'Open navigation' }).click();
   await restored.getByRole('button', { name: 'Settings', exact: true }).click();

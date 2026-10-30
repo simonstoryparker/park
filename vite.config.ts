@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   const pages = mode === 'pages';
-  const base = pages ? process.env.PAGES_BASE_PATH || '/park/' : '/';
+  const base = pages ? process.env.PAGES_BASE_PATH || '/parker/' : '/';
   return {
     base,
     define: { 'import.meta.env.VITE_LOCAL_ONLY': JSON.stringify(pages ? 'true' : 'false') },
@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
         manifest: {
-          name: 'Park',
-          short_name: 'Park',
+          name: 'Parker',
+          short_name: 'Parker',
           description: 'A place to leave ideas',
           theme_color: '#346d83',
           background_color: '#e9eee5',

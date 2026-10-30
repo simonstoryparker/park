@@ -1,4 +1,4 @@
-import { ParkDB, type Pending } from './data';
+import { ParkerDB, type Pending } from './data';
 import type { MutationResult, RecordValue } from '../shared/domain';
 export type SyncState =
   | 'Saved in this browser'
@@ -16,7 +16,7 @@ export class SyncEngine {
   csrf = '';
   disposed = false;
   constructor(
-    public db: ParkDB,
+    public db: ParkerDB,
     public onState: (s: SyncState) => void,
   ) {}
   schedule() {

@@ -18,7 +18,7 @@ The specification now treats the mockups as the primary visual target and explic
 - `scripts/drop-off-review.ts` passes at 390 and 1440px: measures the real WAAPI overlay against the tapped car, verifies a negative horizontal exit, 280ms duration, Undo, scroll/resize/navigation cancellation, rapid duplicate taps, completed-state persistence through reload, reduced motion and idea-kind detail behavior. The script pauses the real animation for inspectable start/leftward frames; it does not replace the animation implementation.
 - `scripts/single-line-visual.ts` verifies 320, 390, 768 and 1440px with empty, populated, command-help and 33-item long-list states, no page errors/horizontal overflow, and clickable navigation after scrolling.
 - Browser design inspector: 0 failures, 2 warnings. Warm composer paper and saturated coastal/vehicle colors are intentional reference requirements. `drop-off-inspector.json` contains the measurements.
-- Source design lint: 0 failures, 50 warnings (legacy shadows/eyebrows and the intentional vehicle shadow). A repository-wide scan also flags gradients in Playwright's generated HTML report; those are testing-tool UI, not Park source.
+- Source design lint: 0 failures, 50 warnings (legacy shadows/eyebrows and the intentional vehicle shadow). A repository-wide scan also flags gradients in Playwright's generated HTML report; those are testing-tool UI, not Parker source.
 
 Screenshots: `drop-off-home-390.png`, `drop-off-home-1440.png`, `drop-off-departure-start-*.png`, `drop-off-departure-left-*.png`, plus the refreshed `single-line-*.png` responsive set.
 

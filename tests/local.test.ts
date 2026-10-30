@@ -1,11 +1,11 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, it, expect } from 'vitest';
-import { ParkDB } from '../src/data';
+import { ParkerDB } from '../src/data';
 import { SyncEngine } from '../src/sync';
 import { general, type Idea } from '../shared/domain';
-const databases: ParkDB[] = [];
+const databases: ParkerDB[] = [];
 async function db() {
-  const d = new ParkDB(crypto.randomUUID());
+  const d = new ParkerDB(crypto.randomUUID());
   databases.push(d);
   await d.init();
   return d;
@@ -37,7 +37,7 @@ afterEach(async () => {
 describe('durable local transactions', () => {
   it('keeps a browser-only park durable without a cloud queue or API calls', async () => {
     const owner = crypto.randomUUID();
-    const d = new ParkDB(owner, true);
+    const d = new ParkerDB(owner, true);
     databases.push(d);
     await d.init();
     const { idea: captured } = await d.capture('Read a book tomorrow', { day: '2026-10-29' });
@@ -53,7 +53,7 @@ describe('durable local transactions', () => {
     expect(states).toEqual(['Saved in this browser', 'Saved in this browser']);
     await expect(engine.request('/api/me')).rejects.toThrow('browser-only');
     d.close();
-    const reopened = new ParkDB(owner, true);
+    const reopened = new ParkerDB(owner, true);
     databases.push(reopened);
     expect((await reopened.ideas.get(captured.id))?.title).toBe('Read a book');
     expect((await reopened.backup()).ideas).toHaveLength(1);

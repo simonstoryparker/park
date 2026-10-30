@@ -1,4 +1,4 @@
-# Park — Product & Implementation Specification
+# Parker — Product & Implementation Specification
 
 **Version:** 4.7 — fixed irregular coastline, neighborhood scenery, and simplified navigation
 
@@ -9,13 +9,13 @@
 
 ## 0. Agent handoff
 
-Build Park end to end from this document. The repository contains the React app, Worker, D1 migrations, tests, and operating instructions. Extend the existing implementation and preserve stored data. Preserve the product scope in Section 11. Complete the implementation and runnable local verification in one continuous pass; the phases in Section 12 are execution order, not requests to stop for approval.
+Build Parker end to end from this document. The repository contains the React app, Worker, D1 migrations, tests, and operating instructions. Extend the existing implementation and preserve stored data. Preserve the product scope in Section 11. Complete the implementation and runnable local verification in one continuous pass; the phases in Section 12 are execution order, not requests to stop for approval.
 
-- **Authority:** This revision supersedes earlier Park specs. Requirements and acceptance criteria are binding; examples and the suggested file layout are illustrative. Apply repository/user instructions first. When a generic skill conflicts with an explicit Park behavior, follow Park and record the exception.
+- **Authority:** This revision supersedes earlier Parker specs. Requirements and acceptance criteria are binding; examples and the suggested file layout are illustrative. Apply repository/user instructions first. When a generic skill conflicts with an explicit Parker behavior, follow Parker and record the exception.
 - **Decision ownership:** Make ordinary implementation choices, document them briefly, and continue. Do not add product features or change the stack. Ask only when a missing answer would change user-visible behavior or require unavailable credentials/access; finish independent work while waiting.
 - **External setup:** Production requires a Google web client ID and allowed origins, a Cloudflare Free account, a D1 binding, and deployed HTTPS URLs. Read available configuration without printing secrets. Provide `.env.example` and precise setup commands; never fabricate credentials or silently substitute development auth in production.
 - **CLI-first setup:** Attempt external-service setup with supported CLI tools and existing authenticated sessions first (for example, Wrangler for Cloudflare resources, bindings, migrations, and deployment configuration). Inspect available tooling and permissions, then perform supported setup within the authorized scope and Free-plan constraints. Do not merely give the user commands the agent can run itself.
-- **Manual browser handoff:** When setup requires browser-only configuration, account creation, sign-in, consent, or another human action, have the user complete it in their own browser. Provide the direct page link, exact steps/values, and the non-secret result needed to continue. For CLI login, start the supported login flow and let the user finish its browser prompt. Never use screen sharing, remote desktop, computer-use tools, or automated takeover of the user’s browser for external-service setup. After identifying a CLI limitation, hand off the necessary manual step promptly rather than repeatedly trying UI workarounds; continue independent implementation while waiting, then resume CLI setup and verify the result. This restriction does not prevent automated tests of Park itself.
+- **Manual browser handoff:** When setup requires browser-only configuration, account creation, sign-in, consent, or another human action, have the user complete it in their own browser. Provide the direct page link, exact steps/values, and the non-secret result needed to continue. For CLI login, start the supported login flow and let the user finish its browser prompt. Never use screen sharing, remote desktop, computer-use tools, or automated takeover of the user’s browser for external-service setup. After identifying a CLI limitation, hand off the necessary manual step promptly rather than repeatedly trying UI workarounds; continue independent implementation while waiting, then resume CLI setup and verify the result. This restriction does not prevent automated tests of Parker itself.
 - **Verification:** Use the gates in Sections 12–13. Report each as passed, failed, or not run, with evidence. Browser emulation does not satisfy actual iPhone/PWA or production OAuth checks. Do not claim deployment, security assurance, or measured user capacity from a local mock.
 - **Deliverables:** Working source and lockfile; local/production configuration; validated D1 migrations; automated checks; representative screenshots; a README covering setup, scripts, backup/restore, deployment, and quota limits; a concise completion report identifying external checks still required.
 
@@ -36,7 +36,7 @@ Network failure leaves local work and the queue intact. Animation starts only af
 
 ## 1. Product vision
 
-**Park is a place to leave ideas without turning them into commitments.** Capture an idea, see it enter a recognizable parking lot, and return to it when ready. Dates mean reconsideration, never deadlines.
+**Parker is a place to leave ideas without turning them into commitments.** Capture an idea, see it enter a recognizable parking lot, and return to it when ready. Dates mean reconsideration, never deadlines.
 
 The visual identity combines the top-down pixel-art language of **Xevious (1983)** with **1990s Silicon Valley**, especially Palo Alto and Mountain View: a small Peninsula world with modern iPhone usability. Sections 4.6–4.7 define the shared art direction, responsive desktop behavior, and how to use the concept images.
 
@@ -55,8 +55,8 @@ The parking metaphor drives behavior: an idea is a car, a lot holds parked cars,
 
 ### Accounts and ownership (required in V1)
 
-- Each user signs in to their **own free Park account** using **Continue with Google**. The Google identity scopes are limited to `openid`, `email`, `profile`. Do not ask for access to Drive, Calendar, or other Google data.
-- No passwords are collected, stored, or hashed by Park. **Do not implement homemade password authentication.** An alternative email/password provider may be added in a later release only if it remains free and secure.
+- Each user signs in to their **own free Parker account** using **Continue with Google**. The Google identity scopes are limited to `openid`, `email`, `profile`. Do not ask for access to Drive, Calendar, or other Google data.
+- No passwords are collected, stored, or hashed by Parker. **Do not implement homemade password authentication.** An alternative email/password provider may be added in a later release only if it remains free and secure.
 - Accounts own independent private ideas and lots. No shared lots, public profiles, or social feed in V1. A user must never be able to read or edit another user's records by guessing a UUID.
 - An account has one private built-in **General** lot. All records are scoped to the authenticated user on the server and in the local cache.
 - Initial Google login and first-device sync need internet. After a successful login, previously cached account data supports offline use. Logging in to a *new* device always requires internet.
@@ -183,15 +183,15 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 ### 4.3 Quick capture
 
-**Happy path:** open → type → Enter (or Park) → done. No required extra step.
+**Happy path:** open → type → Enter (or Parker) → done. No required extra step.
 
 - Automatic destination: a deliberately selected lot first, otherwise the longest matching custom lot name, otherwise create/reuse a calendar lot for the parsed revisit date, otherwise **General / Drop-off zone**. Remember last-used destination only as an opt-in setting. Calendar IDs are deterministic (`date-{precision}-{ISO date}`), shared across devices. Reuse reopens an archived calendar lot; a different archived custom lot is never silently reopened.
 - Show the selected or inferred destination above the writing bar while there is text or an explicit destination. Reset returns to automatic routing; Park here in a lot panel selects that lot. The idle composer is one line with no extra hint row.
 - Suggest an existing lot when the text confidently matches its name, but **never silently override a deliberate lot selection**.
 - If there is no explicit date, an idea in a future lot inherits the lot's start date for eligibility; in a permanent lot it is Someday.
 - Show the extracted title and date destination before saving. Keep date in title preserves the literal phrase; quoting the full capture also preserves it. A confident date creates or reuses a date lot atomically with the captured item and queue entries.
-- Desktop: use the same compact floating composer at the bottom center of the window, with bounded width rather than a full-width input. Retain the destination, vehicle-size controls, and Park interaction. Enter parks; Shift+Enter inserts a newline; `/` focuses the composer when not typing; Escape closes menus/panels.
-- Mobile: a persistent **bottom-anchored writing bar**, with a nearby 1-tap **Compact / Big idea** toggle (car/truck), destination chip, and morphing Enter/Park button, all reachable above the keyboard.
+- Desktop: use the same compact floating composer at the bottom center of the window, with bounded width rather than a full-width input. Retain the destination, vehicle-size controls, and Parker interaction. Enter parks; Shift+Enter inserts a newline; `/` focuses the composer when not typing; Escape closes menus/panels.
+- Mobile: a persistent **bottom-anchored writing bar**, with a nearby 1-tap **Compact / Big idea** toggle (car/truck), destination chip, and morphing Enter/Parker button, all reachable above the keyboard.
 - Vehicle size defaults to **Compact** until explicitly switched, so capturing stays one action. Toggle before saving; after saving use `/set "Title" size = big` or the details sheet. Do not add a size button to every row. The submit control uses a crisp pixel-art upward arrow from the same grid/palette as the vehicles, with accessible name **Park idea**; avoid a visually unrelated stock icon. Pointer hover may add a subtle highlight on devices that support hover; keyboard focus and touch pressed states provide equivalent feedback.
 - Immediately return focus after a successful save, ready for the next idea.
 - Confirm with quiet feedback (“Parked in Robotics · Undo”). Capture Undo is available for 10 seconds and archives the newly created idea with reason `dismissed`; it never hard-deletes text. Use a normal compensating mutation and preserve later edits if they conflict.
@@ -218,7 +218,7 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 - **Layout changes:** Resolve geometry at animation start. Validate the captured origin against the current layout; if keyboard/viewport changes during the commit made it stale, remeasure the button or use the fallback. If scrolling, keyboard/viewport changes, rearrangement, or navigation invalidates it, safely recompute the remaining visible route or finish with the fallback; do not jump to stale coordinates or restart endlessly. The stored idea remains unaffected.
 - **Concurrency:** Each animation retains its submission’s lot/vehicle/idea identity; later edits to the composer must not retarget an earlier car. Two deliberate submissions create two records; duplicate handling of one submission creates one. Cap simultaneous decorative journeys (two is sufficient); additional captures receive immediate confirmation without waiting in an animation queue. Cancel an idea’s in-flight effect on Undo and derive its display from the resulting local state.
 - **Timing and technique:** Aim for roughly **450–900 ms** for morph + visible route + arrival, with an upper bound of **1,200 ms** for a longer route. Keep turns legible and speed changes smooth; use the exit fallback rather than a long offscreen journey. Prefer Web Animations API/CSS transforms and opacity for travel, with a lightweight SVG shape sequence for the morph. Use shared grid-aligned vehicle artwork and smooth translation/rotation; pixel art does not require choppy timing. Do not add a heavy motion library solely for this effect.
-- **Accessibility/reliability:** Reduced motion replaces morph/travel with an immediate state update or brief opacity transition and the same text confirmation. Keep the visual layer noninteractive and hidden from assistive technology; the input/button retain focus and labels. Animation exceptions, route failures, unmounts, and server outages never roll back or duplicate the saved idea. Park works equally through pointer, touch, and Enter. Park’s explicit morph/journey and timing requirements take precedence over generic motion-skill limits.
+- **Accessibility/reliability:** Reduced motion replaces morph/travel with an immediate state update or brief opacity transition and the same text confirmation. Keep the visual layer noninteractive and hidden from assistive technology; the input/button retain focus and labels. Animation exceptions, route failures, unmounts, and server outages never roll back or duplicate the saved idea. Parker works equally through pointer, touch, and Enter. Parker’s explicit morph/journey and timing requirements take precedence over generic motion-skill limits.
 
 **Definition of success:** Transformation, visible journey, and parking read as one coherent action while the next capture is already available.
 
@@ -234,7 +234,7 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 **Renderer:** Section 4.1 defines the shared miniature renderer. Scale the whole drawing, preserve compact/truck proportions, and use accurate vehicle/space counts when a preview is bounded. Miniature cars are decorative; expanded rows provide individual actions.
 
-**Minimal, non-generic visual language:** One readable UI font family, with the pixelated `park.` wordmark as the sole typography exception; documented spacing/color/radius tokens, restrained accents, consistent hierarchy. No greeting paragraphs, AI-generated inspirational copy, productivity scores, filler subheadings, card-within-card dashboards, random decorative icons, gratuitous gradients, fake content, or unnecessary badges. The parking illustrations and movement carry the app's character. Labels are brief: `Lots`, `Ready`, `Someday`, `Big idea`, `Park`, `Undo`. Prefer whitespace and typographic hierarchy over repeated containers.
+**Minimal, non-generic visual language:** One readable UI font family, with the pixelated `parker.` wordmark as the sole typography exception; documented spacing/color/radius tokens, restrained accents, consistent hierarchy. No greeting paragraphs, AI-generated inspirational copy, productivity scores, filler subheadings, card-within-card dashboards, random decorative icons, gratuitous gradients, fake content, or unnecessary badges. The parking illustrations and movement carry the app's character. Labels are brief: `Lots`, `Ready`, `Someday`, `Big idea`, `Parker`, `Undo`. Prefer whitespace and typographic hierarchy over repeated containers.
 
 **Apple-inspired interaction principles:** Place frequent actions in natural thumb reach; separate navigation from content; preserve familiar menu behavior and comfortable touch targets (~44×44pt); let contextual actions appear near their object; apply motion only to communicate state. Do not imitate Liquid Glass unnecessarily in a web app. Respect reduced motion, keyboard navigation, safe areas, screen readers, and focus. Avoid relying on hover or color alone.
 
@@ -242,13 +242,13 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 ### 4.6 Visual direction: coastal Silicon Valley in pixel art
 
-**Design goal:** Park feels like a carefully crafted 1990s Silicon Valley world seen through a classic top-down arcade game. Pixel art supplies its character; modern controls keep capture, reading, and editing simple.
+**Design goal:** Parker feels like a carefully crafted 1990s Silicon Valley world seen through a classic top-down arcade game. Pixel art supplies its character; modern controls keep capture, reading, and editing simple.
 
 **Reference and precedence:** The [concept montage](references/pixel-coastal-task-manager-montage.png) is the primary visual target for atmosphere, palette, perspective, artwork, and composition: match the drawings as closely as practical while keeping the interface usable. The explicit Drop-off list and leftward completion requirements in Section 4.5 supersede the montage’s pictorial Drop-off parking lot. Functional behavior and accessibility still follow this written specification. Adapt dimensions and spacing for real text and viewport sizes without replacing the coastal world with generic cards. Mockup captions, sample text/dates/counts, and depicted controls do not add requirements.
 
 - **World and palette:** Use blue water and a restrained coastline along the left edge of the Lots scene, with low-rise offices, paved lots, tree-lined streets, and understated 1990s suburban architecture. Use richer layered pixel foliage, tree-lined plot edges, shaded vehicles, asphalt bays, and a blue shoreline to approach the drawings. Keep a clear grassy area behind the Drop-off list and exclude the entire tree canopy from text and controls. Cluster scenery in the remaining land instead of scattering it over content. Use a shared palette of water blues, greens, asphalt/building neutrals, light readable surfaces, and a few vehicle accents. Define exact color tokens during implementation and verify contrast.
-- **Pixel-art system:** Lots, compact cars, trucks, roads, buildings, trees, and shoreline share one top-down perspective, logical pixel grid, outline weight, palette, and lighting direction. Use crisp stepped shapes and restrained shading; avoid mixing painterly terrain, smooth vector cars, and unrelated icons. Xevious informs the visual language, not combat, scoring, or gameplay. Create original Park artwork rather than reproducing game assets.
-- **Brand and text:** Display the wordmark as lowercase **`park.`**, including the period, in distinctive pixel lettering. A locally bundled pixel font or custom grid-based SVG lettering is acceptable; give an SVG wordmark the accessible name “Park.” Use the readable UI family for all idea text, labels, dates, menus, and inputs. Never rasterize functional text or use a pixel font for body copy.
+- **Pixel-art system:** Lots, compact cars, trucks, roads, buildings, trees, and shoreline share one top-down perspective, logical pixel grid, outline weight, palette, and lighting direction. Use crisp stepped shapes and restrained shading; avoid mixing painterly terrain, smooth vector cars, and unrelated icons. Xevious informs the visual language, not combat, scoring, or gameplay. Create original Parker artwork rather than reproducing game assets.
+- **Brand and text:** Display the wordmark as lowercase **`parker.`**, including the period, in distinctive pixel lettering. A locally bundled pixel font or custom grid-based SVG lettering is acceptable; give an SVG wordmark the accessible name “Parker.” Use the readable UI family for all idea text, labels, dates, menus, and inputs. Never rasterize functional text or use a pixel font for body copy.
 - **Integrated controls:** Carry the scene’s colors, vehicle motifs, and restrained edge treatment into the composer, buttons, chips, navigation, menus, and sheets. Keep familiar control behavior and clear focus/pressed/disabled states. Use calm opaque surfaces for individual buttons, menus, panels and the composer; the navigation wrapper stays transparent at every scroll position. Never add a full-width opaque header on scroll. Keep the Drop-off list directly on quiet grass, with scenery excluded from readable content. Pixel styling must not shrink hit areas or force every control into a rigid square shape.
 - **Responsive restraint:** Lots are data-driven; surrounding scenery is decorative. Mobile keeps the compact scrolling lot presentation. Desktop generates the navigable landscape in Section 4.7. On narrow screens or at large text sizes, simplify the coastal margin and scenery before reducing usable content width, and use the mobile presentation when desktop panels no longer fit. The images alone do not require a map/list toggle or extra route.
 - **Function and motion:** Preserve the Lots/Drop-off zone/Archive structure, readable Drop-off rows, bottom composer, capacity counts, and interactions in Sections 3–4.5. Decorative buildings, trees, boats, and roads never represent ideas or add tappable objects; only domain records determine occupancy. The montage’s pictorial drop-off does not replace the readable list or expand task-only completion. Animate only the specified user feedback; no ambient scrolling terrain, blinking scenery, or continuous water effects in V1.
@@ -264,7 +264,7 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 #### Layout and navigation
 
-- Keep blue water/coastline as a stable visual anchor along the left side; developed land extends to the right. Place the pixelated **`park.`** wordmark at the upper-left coastal edge rather than in a traditional header. It stays white with a subtle dark edge for legibility over land or water; never reshape the coastline to follow it while scrolling. On a constrained viewport, simplify this margin instead of squeezing functional content.
+- Keep blue water/coastline as a stable visual anchor along the left side; developed land extends to the right. Place the pixelated **`parker.`** wordmark at the upper-left coastal edge rather than in a traditional header. It stays white with a subtle dark edge for legibility over land or water; never reshape the coastline to follow it while scrolling. On a constrained viewport, simplify this margin instead of squeezing functional content.
 - Arrange lots across land with roads/gutters separating them. Each plot has a readable, selectable label showing the actual lot name and authoritative vehicle/space counts, plus timing where applicable. Size and layout follow the shared compact/truck renderer and bounded-preview rules; never invent cars or parking capacity to fill the world.
 - Anchor the compact floating capture bar at the bottom center of the window, above the landscape, using the same controls, visual language, and save/morph behavior as mobile. Set a maximum width; reserve clearance so panels and map content do not cover it. Opening a lot does not silently change the capture destination; an explicit **Park here** action may select it and focus the composer.
 - Use one compact navigation group for **Lots**, **Drop-off zone**, **Archive**, **Settings/account**, and **New Lot**; avoid a permanent sidebar or redundant toolbars. Lots remain directly selectable in the landscape. Keep every General Parked title readable in the open Drop-off list, with the full Drop-off destination available from navigation or `/drop-off`. Navigation and labels must be discoverable without hover or memorized shortcuts.
@@ -349,7 +349,7 @@ The user should be able to do this in **one text field**, without filling out se
 
 1. Tap **+ New Lot** (or invoke a desktop keyboard shortcut such as `L` outside text inputs).
 2. The focused text field invites “Post surgery for 2 weeks starting Tuesday” or “Robotics max 3.”
-3. As the user types, Park extracts **name**, **start**, **duration/end**, and **capacity** when confidently understood.
+3. As the user types, Parker extracts **name**, **start**, **duration/end**, and **capacity** when confidently understood.
 4. Show editable, inline **interpretation chips**: `Post Surgery` · `Starts Tue, Oct 27` · `Ends Mon, Nov 9` · `Unlimited`.
 5. Press Enter / **Create Lot** to save. If all critical parsed values are unambiguous, **one Enter is enough**.
 6. For ambiguous time input, preserve it, explain the uncertainty, and ask the user to edit the relevant chip instead of inventing a date. Still allow creating a name-only lot if they choose to ignore uncertain temporal text.
@@ -632,7 +632,7 @@ Do not add an API call for every lot render, every animation frame, or every lis
 
 ### 9.4 Free-plan planning limits (rechecked October 26, 2026)
 
-| Resource | Free tier relevant to Park | Main risk |
+| Resource | Free tier relevant to Parker | Main risk |
 | --- | --- | --- |
 | Cloudflare Workers | **100,000 requests/day; 10 ms CPU/request** | API/auth quotas or CPU limit can terminate requests |
 | Cloudflare static assets | **Free/unlimited static asset requests** | Free plan still has per-project size/build constraints |
@@ -739,7 +739,7 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 
 ### PWA hosting details
 
-- Manifest: `name=Park`, `display=standalone`, proper theme/icon sizes, responsive viewport.
+- Manifest: `name=Parker`, `display=standalone`, proper theme/icon sizes, responsive viewport.
 - Cache static shell with service worker; IndexedDB stores data separately. **Never cache private API responses in a shared/public service-worker cache.**
 - Deploy on Cloudflare Workers Static Assets with same-origin `/api/*` routing, HTTPS, correct SPA fallback, manifest scope/start URL, and a free `workers.dev` hostname. Do not route static asset requests through the Worker unnecessarily.
 - Show an unobtrusive update prompt; never reload over an unsaved draft.
@@ -754,7 +754,7 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 | Capture | One-field, one-submit capture with built-in General default |
 | Lots | Create, edit, expand/collapse, archive safely, and move cars |
 | One-line actions | Deterministic capture/lot parsing, lifecycle/field/navigation commands, visible preview, manual fallback |
-| Theme | Coastal Silicon Valley pixel art (Sections 4.6–4.7), `park.` wordmark, shared renderer, stable generated desktop landscape, compact cars/two-space trucks |
+| Theme | Coastal Silicon Valley pixel art (Sections 4.6–4.7), `parker.` wordmark, shared renderer, stable generated desktop landscape, compact cars/two-space trucks |
 | Interaction | Bottom composer with continuous pixel-arrow-to-vehicle morph, geometry-routed journey/arrival, immediate reuse, and task drive-off/Undo |
 | Visual QA | Coherent pixel-art system, restrained scenery, readable UI typography; screenshot and mobile safe-area/keyboard checks |
 | Capacity | Unlimited/soft cap and optional strict cap, including server-side atomic checks |
@@ -790,7 +790,7 @@ Configure Google Identity Services, Worker static assets + `/api`, D1 migrations
 
 ### Phase 3 — Thumb-first parking lot visual experience
 
-Build and self-review an exemplary phone screen against Sections 4 and 13; fix it before expanding the UI. First establish the shared pixel grid, palette, vehicle artwork, readable UI type, `park.` wordmark, and closely matched coastal environment from Section 4.6. Implement bottom pinned composer/navigation, shared adaptive mini parking lots, compact and truck vehicle sizing, space-weighted capacity, drop-off list, the continuous submit morph and geometry-routed parking in Section 4.4, and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Implement the desktop chronological coastal landscape, labeled navigation, centered composer, and floating views in Section 4.7. Inspect iPhone and desktop screenshots; retain the required coastal setting while removing unrelated filler and excess scenery.
+Build and self-review an exemplary phone screen against Sections 4 and 13; fix it before expanding the UI. First establish the shared pixel grid, palette, vehicle artwork, readable UI type, `parker.` wordmark, and closely matched coastal environment from Section 4.6. Implement bottom pinned composer/navigation, shared adaptive mini parking lots, compact and truck vehicle sizing, space-weighted capacity, drop-off list, the continuous submit morph and geometry-routed parking in Section 4.4, and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Implement the desktop chronological coastal landscape, labeled navigation, centered composer, and floating views in Section 4.7. Inspect iPhone and desktop screenshots; retain the required coastal setting while removing unrelated filler and excess scenery.
 
 **Exit:** `npm run test:e2e` passes on the local app; include task/idea tap behavior, Undo conflicts, and the screenshot matrix in Section 13. A 3-space lot displays correct occupancy; animation plays after a local commit; two devices competing for last spot produce a visible recoverable conflict, never lost text.
 
@@ -834,7 +834,7 @@ Visual direction passes when:
 
 - Lots, vehicles, environment, wordmark, and controls form one coherent pixel-art system with consistent perspective, proportions, and shading. Vehicles in motion match their parked versions.
 - The Lots scene conveys the coastal Silicon Valley setting with varied buildings, connected streets, wooded plot edges and irregular coastline; scenery must never look like stored ideas or cover usable content. Empty, full, and bounded-preview states remain distinguishable.
-- Pixel lettering is confined to `park.`; functional text stays selectable, legible, and high-contrast on calm surfaces. Focus indicators and at least 44×44 CSS-pixel touch targets remain usable.
+- Pixel lettering is confined to `parker.`; functional text stays selectable, legible, and high-contrast on calm surfaces. Focus indicators and at least 44×44 CSS-pixel touch targets remain usable.
 - At 320px width and 200% text zoom, scenery yields to content. The composer, lot labels/counts, and readable Drop-off rows remain visible and operable; reduced motion removes travel without hiding state changes.
 - Match the montage’s coastal art direction closely, with the explicit open Drop-off list adaptation; never use the mockup as a screenshot background. No map/list navigation, ambient animation, or completion behavior is added solely because it appears in the image. Scene assets work offline.
 
@@ -883,16 +883,16 @@ Follow the handoff in Section 0 and the domain/sync contracts above. Do not use 
 
 ### Required skills for comments and documentation
 
-Before writing or editing **any comments or documentation** for Park, the coding agent must read and use all four skills below. This includes source-code comments, API documentation, README files, specifications, implementation notes, and design or motion explanations.
+Before writing or editing **any comments or documentation** for Parker, the coding agent must read and use all four skills below. This includes source-code comments, API documentation, README files, specifications, implementation notes, and design or motion explanations.
 
 | Required skill | Local instructions | Apply when writing |
 | --- | --- | --- |
-| `design-taste-frontend` | [SKILL.md](/Users/simonparker/.agents/skills/design-taste-frontend/SKILL.md) | Keep content specific to Park, justify design choices, and remove generic filler. |
+| `design-taste-frontend` | [SKILL.md](/Users/simonparker/.agents/skills/design-taste-frontend/SKILL.md) | Keep content specific to Parker, justify design choices, and remove generic filler. |
 | `animate` | [SKILL.md](/Users/simonparker/.agents/skills/animate/SKILL.md) | Explain motion purpose, behavior, timing, interruption, and reduced-motion support accurately when relevant. |
 | `frontend-design` | [SKILL.md](/Users/simonparker/.agents/skills/frontend-design/SKILL.md) | Use plain, active language, consistent product terms, and words that help the reader understand or act. |
 | `doc-coauthoring` | [SKILL.md](/Users/simonparker/.agents/skills/doc-coauthoring/SKILL.md) | Check audience, structure, clarity, consistency, and reader understanding at a depth appropriate to the change. |
 
-Consult all four for every comments or documentation task, applying the guidance relevant to the content. A prose-only change does not require building UI or adding animation. Park's explicit product requirements take precedence over conflicting skill defaults; identify any conflict that affects the work. Keep comments focused on intent, constraints, and non-obvious decisions. Proofread the complete affected document for consistency before finishing. These paths identify the owner's local skill installation; on another machine, locate the same named skills and report any that are unavailable.
+Consult all four for every comments or documentation task, applying the guidance relevant to the content. A prose-only change does not require building UI or adding animation. Parker's explicit product requirements take precedence over conflicting skill defaults; identify any conflict that affects the work. Keep comments focused on intent, constraints, and non-obvious decisions. Proofread the complete affected document for consistency before finishing. These paths identify the owner's local skill installation; on another machine, locate the same named skills and report any that are unavailable.
 
 ### Completion report
 

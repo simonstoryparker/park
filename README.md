@@ -1,16 +1,18 @@
-# Park
+# Parker
 
-Park is a private, offline-first place to leave ideas. A compact car uses one space; a big idea uses two. A revisit date means reconsideration, never a deadline.
+Parker is a private, offline-first place to leave ideas. A compact car uses one space; a big idea uses two. A revisit date means reconsideration, never a deadline.
 
-The implementation follows [the V4 product contract](docs/Park_App_Product_and_Implementation_Spec_V4.md). React, TypeScript, Vite, Tailwind, Dexie, Google Identity Services, a Cloudflare Worker, and D1 are the application stack. Original SVG/CSS artwork ships with the offline shell.
+The implementation follows [the V4 product contract](docs/Parker_App_Product_and_Implementation_Spec_V4.md). React, TypeScript, Vite, Tailwind, Dexie, Google Identity Services, a Cloudflare Worker, and D1 are the application stack. Original SVG/CSS artwork ships with the offline shell.
+
+The product is named Parker. Existing `park` browser storage keys, cookies, and Cloudflare database name remain for compatibility with saved data. The GitHub repository and Pages path use `parker`. The parking verbs and idea statuses retain their existing meaning.
 
 ## GitHub Pages
 
-Open [Park on GitHub Pages](https://simonstoryparker.github.io/park/). Choose **Sign in with Google** to open [the account version of Park](https://park.simonstoryparker.workers.dev/), which hosts the app and API together so sign-in and sync work without third-party cookies. The Google OAuth web client must authorize `https://park.simonstoryparker.workers.dev` as a JavaScript origin; no redirect URI is needed for the existing popup flow.
+Open [Parker on GitHub Pages](https://simonstoryparker.github.io/parker/). Choose **Sign in with Google** to open [the account version of Parker](https://park.simonstoryparker.workers.dev/), which hosts the app and API together so sign-in and sync work without third-party cookies. The Google OAuth web client must authorize `https://park.simonstoryparker.workers.dev` as a JavaScript origin; no redirect URI is needed for the existing popup flow.
 
 Or choose **Open my park** to store your park in this browser using IndexedDB without an account. Ideas, lots, dates, completion, Undo, JSON export/import, and offline installation work locally. **Settings** also includes the Google sign-in link. Browser and account parks are separate: to move existing ideas to an account, export a JSON backup from this browser’s Settings, sign in, then import it in the account park. No local data is removed by opening sign-in. Export backups regularly: clearing browser storage removes local data.
 
-`.github/workflows/pages.yml` tests, builds, and deploys on pushes to `main`, or through **Actions → Deploy Park to GitHub Pages → Run workflow**. Repository **Settings → Pages → Source** must be **GitHub Actions**. GitHub Pages requires a public repository on the Free plan; private repositories need an eligible paid plan. See [GitHub's workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+`.github/workflows/pages.yml` tests, builds, and deploys on pushes to `main`, or through **Actions → Deploy Parker to GitHub Pages → Run workflow**. Repository **Settings → Pages → Source** must be **GitHub Actions**. GitHub Pages requires a public repository on the Free plan; private repositories need an eligible paid plan. See [GitHub's workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 To preview this exact build locally:
 
@@ -20,7 +22,7 @@ npm run build:pages
 npm run preview -- --mode pages --port 4173
 ```
 
-Open [localhost:4173/park/](http://localhost:4173/park/). The workflow derives the base path from GitHub Pages configuration; local builds default to `/park/`. Override `PAGES_BASE_PATH` for another project path or `/` for a custom domain. Manifest icons, service-worker scope, and assets follow this path. The regular `npm run build` and Cloudflare deployment retain Google sign-in and account sync; the two builds use separate local data namespaces.
+Open [localhost:4173/parker/](http://localhost:4173/parker/). The workflow derives the base path from GitHub Pages configuration; local builds default to `/parker/`. Override `PAGES_BASE_PATH` for another project path or `/` for a custom domain. Manifest icons, service-worker scope, and assets follow this path. The regular `npm run build` and Cloudflare deployment retain Google sign-in and account sync; the two builds use separate local data namespaces.
 
 ## Run locally
 
@@ -34,7 +36,7 @@ npm run db:migrate
 npm run build
 ```
 
-Set `CURSOR_SECRET` in `.dev.vars` to a random string of at least 32 characters. For real Google sign-in, set `GOOGLE_CLIENT_ID` there, or remove the empty `GOOGLE_CLIENT_ID` line from `.dev.vars` to use the configured public ID in `wrangler.jsonc`. In the Google client, register both `http://localhost` and `http://localhost:5173` as authorized JavaScript origins. No redirect URI or client secret is needed. Park requests basic identity only.
+Set `CURSOR_SECRET` in `.dev.vars` to a random string of at least 32 characters. For real Google sign-in, set `GOOGLE_CLIENT_ID` there, or remove the empty `GOOGLE_CLIENT_ID` line from `.dev.vars` to use the configured public ID in `wrangler.jsonc`. In the Google client, register both `http://localhost` and `http://localhost:5173` as authorized JavaScript origins. No redirect URI or client secret is needed. Parker requests basic identity only.
 
 Run these in separate terminals:
 
@@ -47,9 +49,9 @@ Open [localhost:5173](http://localhost:5173). The Vite server proxies `/api` to 
 
 For automated/local development without Google, set `VITE_DEV_AUTH=true` in `.env.local` and `DEV_AUTH=true` in `.dev.vars`. This reveals **Use local development account** in the development server. The server accepts that identity only on `localhost` or `127.0.0.1`, with the flag explicitly enabled. The production build removes the development button, and production Worker configuration sets `DEV_AUTH=false`. Never enable development authentication on an external hostname.
 
-## Use Park
+## Use Parker
 
-- Type `english outline tomorrow` and press Enter. Park creates a dated lot for tomorrow and parks **english outline** inside it. More thoughts for that date reuse the lot.
+- Type `english outline tomorrow` and press Enter. Parker creates a dated lot for tomorrow and parks **english outline** inside it. More thoughts for that date reuse the lot.
 - Thoughts without a date go to **Drop-off zone**, an open to-do list on the grassy landscape. It has no parking bays or enclosing card. Every parked title appears beside its left-facing car; click the title for details or tap the task car to complete and watch it drive off left. Undo restores it.
 - Capture understands today, tomorrow, weekdays, ISO dates, named dates such as November 20, next week/month, and in 3 days/weeks. Dates can go at the end, or at the beginning (`tomorrow: English outline`). A leading weekday needs punctuation (`Friday: English outline`) to avoid changing titles such as Friday Night Lights. Quoted text stays literal; **Keep date in title** turns off date interpretation for a capture.
 - The preview above the composer shows the destination and extracted title before saving. A draft survives refresh. `/` focuses capture; Enter parks; Shift+Enter inserts a newline.
@@ -76,7 +78,7 @@ Type `/` in the same composer for examples. Select an example to edit it, then p
 - `/sync`, `/undo`, `/export` run utilities; `/resolve "Mutation ID" mine` or `server` reconciles an existing conflict.
 - `/import`, `/sign-out`, `/delete-account` invoke the existing file selection, pending-work and account safeguards. Import preview and destructive confirmation remain required.
 
-Quotes around an entire capture keep literal slash or date text. Commands work offline through the same local store and sync queue. A bulk move that cannot fit in a strict lot rolls back every local move; cloud sync still acknowledges individual mutations. The complete grammar and exceptions are in [spec Section 4.8](docs/Park_App_Product_and_Implementation_Spec_V4.md#48-single-line-actions-and-reduced-friction).
+Quotes around an entire capture keep literal slash or date text. Commands work offline through the same local store and sync queue. A bulk move that cannot fit in a strict lot rolls back every local move; cloud sync still acknowledges individual mutations. The complete grammar and exceptions are in [spec Section 4.8](docs/Parker_App_Product_and_Implementation_Spec_V4.md#48-single-line-actions-and-reduced-friction).
 
 Current visual revision: [Fixed coastline and neighborhood verification](docs/verification/COASTAL-NEIGHBORHOOD.md). Previous Drop-off work: [Leftward completion verification](docs/verification/DROP-OFF-LANDSCAPE.md). Earlier command work: [Single-line actions verification](docs/verification/SINGLE-LINE-ACTIONS.md).
 
@@ -156,7 +158,7 @@ Copy the resulting database ID into the `DB` binding. Replace or remove the exis
 
 For Google:
 
-1. Create/select the Park project in [Google Cloud Console](https://console.cloud.google.com/).
+1. Create/select the Parker project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Configure Google Auth Platform branding and an External audience. Add your own test email during local verification if required by the console.
 3. Create a **Web application** client in [Clients](https://console.cloud.google.com/auth/clients). Register `http://localhost`, `http://localhost:5173`, and, before deployment, the exact HTTPS production origin.
 4. Use only `openid`, `email`, and `profile`. Copy the public client ID into `GOOGLE_CLIENT_ID`. Do not create or share a client secret for this flow.
@@ -201,7 +203,7 @@ If storage becomes limiting: export D1; rehearse a restore; introduce an owner-t
 
 ## Design and motion decisions
 
-Park's parking metaphor supplies the interaction and the visual identity. Blue water `#1685b7`, varied green terrain `#8ba35e`, sand `#ddc790`, and dark green interface text form the coastal palette. Functional type uses the system UI family with selectable text; only `park.` uses the locally bundled Press Start 2P pixel font. Spacing follows a 4px grid; controls use modest 5–12px corner radii. Sparse offices and trees use deterministic variation and never represent records.
+Parker's parking metaphor supplies the interaction and the visual identity. Blue water `#1685b7`, varied green terrain `#8ba35e`, sand `#ddc790`, and dark green interface text form the coastal palette. Functional type uses the system UI family with selectable text; only `parker.` uses the locally bundled Press Start 2P pixel font. Spacing follows a 4px grid; controls use modest 5–12px corner radii. Sparse offices and trees use deterministic variation and never represent records.
 
 Capture motion is save feedback and spatial orientation: an SVG arrow morphs through intermediate geometry, then a noninteractive WAAPI layer travels for up to 900ms using measured lot/lane geometry. The input is reusable after the local commit. The reserved static sprite is hidden only during that journey; counts always derive from stored records. Resize, scrolling, Undo, or animation errors cancel the effect and restore static rendering. Offscreen/unrepresented targets use the named confirmation. Reduced motion skips travel; completion drive-off lasts 280ms.
 

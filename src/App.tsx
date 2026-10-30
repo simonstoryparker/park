@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { registerSW } from 'virtual:pwa-register';
-import { ParkDB, downloadBackup } from './data';
+import { ParkerDB, downloadBackup } from './data';
 import { SyncEngine, type SyncState } from './sync';
 import { localOnly, localAccount, cloudAppUrl } from './runtime';
 import { LandscapeArt } from './Landscape';
@@ -95,7 +95,7 @@ export function App() {
         reauthenticate={<GoogleLogin login={login} />}
         done={async () => {
           if (account) {
-            const db = new ParkDB(account.id);
+            const db = new ParkerDB(account.id);
             await db.delete();
             for (const key of Object.keys(sessionStorage))
               if (key.startsWith(`park-draft:${account.id}:`)) sessionStorage.removeItem(key);
@@ -244,7 +244,7 @@ function Workspace({
   signOut: () => void;
   reauthenticate: ReactNode;
 }) {
-  const [db] = useState(() => new ParkDB(account.id, localOnly));
+  const [db] = useState(() => new ParkerDB(account.id, localOnly));
   const [syncState, setSyncState] = useState<SyncState>(
     localOnly ? 'Saved in this browser' : 'Changes waiting',
   );
@@ -580,7 +580,7 @@ function Workspace({
         }
         return;
       }
-      let result: Awaited<ReturnType<ParkDB['capture']>>;
+      let result: Awaited<ReturnType<ParkerDB['capture']>>;
       try {
         result = await db.capture(submitted, {
           day,
@@ -847,7 +847,7 @@ function Workspace({
       className={`app view-${view === 'Drop-off zone' ? 'drop-off' : view.toLowerCase()} ${largeText ? 'large-text' : ''} ${keyboard > 100 ? 'keyboard-open' : ''}`}
       style={{ '--keyboard': `${keyboard}px` } as React.CSSProperties}
     >
-      <aside className="coast" aria-label="Park">
+      <aside className="coast" aria-label="Parker">
         <CoastArt />
         <Wordmark />
       </aside>
@@ -1361,7 +1361,7 @@ function Workspace({
                 <>
                   <h3>Google account</h3>
                   <p>
-                    Sign in with Google to use Park across devices. To move this browser’s ideas,
+                    Sign in with Google to use Parker across devices. To move this browser’s ideas,
                     export a backup below, then import it in your signed-in park.
                   </p>
                   <p>
@@ -1549,13 +1549,13 @@ function Workspace({
                   <button onClick={() => setImportPlan(null)}>Cancel import</button>
                 </section>
               )}
-              <h3>Install Park</h3>
+              <h3>Install Parker</h3>
               <p className="help">
                 iPhone: open in Safari, Share → Add to Home Screen. Mac: use your browser’s Install
                 or Add to Dock.{' '}
                 {localOnly
-                  ? 'Open Park online once before using it offline.'
-                  : 'Sign in online once before using Park offline.'}
+                  ? 'Open Parker online once before using it offline.'
+                  : 'Sign in online once before using Parker offline.'}
               </p>
               {update && (
                 <button
@@ -2094,7 +2094,7 @@ function RecoveredDrafts({
   saved,
   notify,
 }: {
-  db: ParkDB;
+  db: ParkerDB;
   saved: () => void;
   notify: (s: string) => void;
 }) {
@@ -2221,7 +2221,7 @@ function ExpiredDevice({
   exportAll,
   notify,
 }: {
-  db: ParkDB;
+  db: ParkerDB;
   engine: SyncEngine;
   exportAll: () => Promise<void>;
   notify: (s: string) => void;

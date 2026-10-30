@@ -5,8 +5,8 @@ import type { Idea, Lot } from '../shared/domain';
 import { occupancy, units } from '../shared/domain';
 export function Wordmark() {
   return (
-    <span role="img" aria-label="Park" className="wordmark">
-      park.
+    <span role="img" aria-label="Parker" className="wordmark">
+      parker.
     </span>
   );
 }

@@ -1,4 +1,4 @@
-name: Deploy Park to GitHub Pages
+name: Deploy Parker to GitHub Pages
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
         uses: actions/configure-pages@v5
       - run: npm ci
       - run: npm run test:unit
-      - name: Build browser-only Park
+      - name: Build browser-only Parker
         run: npm run build:pages
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}/
