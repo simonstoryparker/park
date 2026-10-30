@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-10-27T04:08:13.551Z",
+  "kind": "Local D1 baseline plus workload forecast; not provider capacity measurement",
+  "measured": {
+    "accounts": 100,
+    "ideas": 500,
+    "elapsedMs": 1473.791542,
+    "p95AccountMs": 17.96799999999996,
+    "rowsRead": 2795,
+    "rowsWritten": 5600,
+    "payloadBytes": 201100
+  },
+  "profile": {
+    "captures": 5,
+    "otherMutations": 3,
+    "syncSessions": 3,
+    "requests": 12,
+    "rowsRead": 188,
+    "rowsWritten": 121,
+    "storageBytesPerDay": 14011
+  },
+  "limits": {
+    "requests": 100000,
+    "reads": 5000000,
+    "writes": 100000,
+    "databaseBytes": 500000000
+  },
+  "scenarios": [
+    {
+      "simulatedDailyActiveAccounts": 100,
+      "predictedRequests": 1200,
+      "predictedReads": 18800,
+      "predictedWrites": 12100,
+      "predictedStorageGrowthBytes": 1401100,
+      "daysTo500MB": 356.86246520590964,
+      "bindingConstraint": "D1 writes (includes index/receipt/change overhead allowance); storage accumulates until 90-day metadata expiry"
+    },
+    {
+      "simulatedDailyActiveAccounts": 1000,
+      "predictedRequests": 12000,
+      "predictedReads": 188000,
+      "predictedWrites": 121000,
+      "predictedStorageGrowthBytes": 14011000,
+      "daysTo500MB": 35.68624652059096,
+      "bindingConstraint": "D1 writes (includes index/receipt/change overhead allowance); storage accumulates until 90-day metadata expiry"
+    },
+    {
+      "simulatedDailyActiveAccounts": 10000,
+      "predictedRequests": 120000,
+      "predictedReads": 1880000,
+      "predictedWrites": 1210000,
+      "predictedStorageGrowthBytes": 140110000,
+      "daysTo500MB": 3.5686246520590963,
+      "bindingConstraint": "D1 writes (includes index/receipt/change overhead allowance); storage accumulates until 90-day metadata expiry"
+    }
+  ],
+  "providerMeasurements": "NOT RUN: credentials, deployed CPU and production D1 metrics required",
+  "notes": [
+    "100 accounts/500 inserts executed on local Miniflare D1. 1,000 and 10,000 DAU are arithmetic workload simulations, not concurrent-user load tests.",
+    "Forecast allowances cover session authentication, rate-limit rows, receipts, indexes and 8 mutations/day. Validate against deployed endpoint metrics before inviting users.",
+    "Local wall time is not Worker CPU time. Initial snapshots and existing storage are additional costs."
+  ]
+}

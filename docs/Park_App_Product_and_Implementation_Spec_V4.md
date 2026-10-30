@@ -1,15 +1,15 @@
 # Park — Product & Implementation Specification
 
-**Version:** 4.4 — capture morph, routed parking animation, and desktop landscape
+**Version:** 4.7 — fixed irregular coastline, neighborhood scenery, and simplified navigation
 
-**Updated:** October 26, 2026  
+**Updated:** October 27, 2026<br>
 **Platform:** iPhone-first progressive web app (PWA), also comfortable on a Mac  
 **Budget:** $0 for development, deployment and operation **within current free-tier limits**; no payment method or automatic paid upgrade  
 **Status:** Implementation contract; production credentials, deployment, and physical-device verification are external release prerequisites.
 
 ## 0. Agent handoff
 
-Build Park end to end from this document. The repository currently contains this specification only; scaffold the application, Worker, migrations, tests, and operating instructions. Preserve the product scope in Section 11. Complete the implementation and runnable local verification in one continuous pass; the phases in Section 12 are execution order, not requests to stop for approval.
+Build Park end to end from this document. The repository contains the React app, Worker, D1 migrations, tests, and operating instructions. Extend the existing implementation and preserve stored data. Preserve the product scope in Section 11. Complete the implementation and runnable local verification in one continuous pass; the phases in Section 12 are execution order, not requests to stop for approval.
 
 - **Authority:** This revision supersedes earlier Park specs. Requirements and acceptance criteria are binding; examples and the suggested file layout are illustrative. Apply repository/user instructions first. When a generic skill conflicts with an explicit Park behavior, follow Park and record the exception.
 - **Decision ownership:** Make ordinary implementation choices, document them briefly, and continue. Do not add product features or change the stack. Ask only when a missing answer would change user-visible behavior or require unavailable credentials/access; finish independent work while waiting.
@@ -71,9 +71,9 @@ Each idea is one stored item and has one lifecycle state:
 - **Active:** Intentionally pulled out to work on now; not occupying a parking space.
 - **Archived:** Finished, dismissed, or kept for reference; not occupying a parking space.
 
-Each idea belongs to exactly **one lot** in V1. The built-in **General** lot is the default destination, so no lot decision is ever required to save. General is unlimited and cannot be deleted. The app can still show **Someday** as an automatic time grouping; *Someday is not a separate stored lot or required folder*. Its visual summary uses the same miniature renderer, while each idea retains its actual lot association. Grouping must not duplicate records or add to a lot's occupancy.
+Each idea belongs to exactly **one lot** in V1. The built-in **General** lot is the default destination, so no lot decision is ever required to save. General is unlimited and cannot be deleted. **Someday** describes effective-undated items; it is not a separate stored lot, required folder, or visible timing filter. Display grouping must not duplicate records or add to occupancy.
 
-Vehicle size and completion intent are independent. Add `kind: idea | task`, defaulting to `idea`; the details sheet lets the user explicitly change it. Only `task` records offer **Complete**, regardless of compact/truck size. Do not infer task intent from text, size, or date, and do not add a required choice during capture.
+Vehicle size and completion intent are independent. Add `kind: idea | task`, defaulting to `task` for new captures so its car can be completed immediately; the details sheet and `/set "Title" kind = idea` let the user change it. Existing records retain their kind. Only `task` records offer **Complete**, regardless of compact/truck size. This is a fixed capture default, never an inference from text, size, or date. Do not add a required choice during capture.
 
 An idea can have an optional personal **revisit date**. It may also inherit a not-before date from its lot. The original idea text is preserved even if a recognized time phrase is removed from the display title.
 
@@ -124,50 +124,50 @@ An **end date is not a due date**. It closes the intended *period of the lot* an
 
 ## 3. Primary information architecture
 
-Use four simple destinations:
+Use three primary destinations and a Settings panel:
 
 **Lots (default home)**
 
-- **Pinned bottom quick-capture composer** above a compact bottom navigation dock; never place the primary capture bar at the top.
-- A compact Drop-off preview (the first five Now rows, with **View all**), followed by collapsible **visual parking lots**, is the home browsing experience.
+- **Pinned bottom quick-capture composer** with navigation in the top-right popover; never place the primary capture bar at the top.
+- The Drop-off is an open to-do list on the grass, listing **every Parked item assigned to General**, with a left-facing car on the left and its readable title beside it. It has no miniature, parking bays, duplicate car summary, or enclosing white/cream rectangle. No cap or expansion is required to read titles. The list grows in normal map scrolling; later row bands move down to prevent overlap. User-created lots remain collapsible visual parking lots.
 - Each lot header shows name, timing (if any), occupancy/capacity (if any), and a subtle upcoming/open/ended label.
 - Mobile collapsed: a compact overhead parking lot illustration with car positions; expanded: accessible idea rows/cards with actions.
 - Desktop: labeled lots in a generated landscape; selecting one opens a floating lot panel with the same readable rows/actions (Section 4.7).
 - General always exists and is the default parking destination.
 - Create Lot is reachable with one tap and through desktop keyboard shortcuts.
-- Optional filters by timing (Ready / Future / Someday) and search, without forcing users to reorganize ideas.
+- No All ideas/timing dropdown, search icon, search field, or floating finder. Browse the actual lots and item lists; named `/edit` and `/edit-lot` commands remain direct entry points.
 
-**Now / Drop-off zone**
+**Drop-off zone (also referred to as Now in the scheduling model)**
 
-- **Drop-off zone** is the list presentation on Now: separate **Active** and **Ready to revisit** sections, with each item shown once. There is no separate drop-off entity, date, or lifecycle state. Task rows offer Complete; idea rows offer Start or details.
+- **Drop-off zone** is the user-facing name for built-in General and the full-list destination. Show General’s Parked items, then **Ready to revisit** from other non-archived lots, then **In progress** (Active items from any lot). Each item appears once within this destination. Drop-off is a presentation name, not another stored entity or lifecycle state. Task vehicles complete; idea vehicles open details; title clicks always open details.
 - **Active** items deliberately pulled out to work on.
 - **Ready to revisit** parked cars whose effective date has arrived; actions: Start, Later, Move, Archive.
 - Non-urgent prompt to review lots whose window ended. No overdue count.
 - Quick capture remains available here too.
 
-The Lots home preview repeats Now rows for convenience; it is not another record or occupancy count. Within Now, Active and Ready are disjoint. **Someday** is an alternate Lots view, not an additional list appended beneath the same expanded lots: switching to it groups only effective-undated Parked items with the shared renderer and preserves their actual lot IDs. Order mobile lots and the desktop map’s logical navigation by `sortOrder`, then ID; order Active by newest `activatedAt`, Ready by earliest effective date then `createdAt`, and expanded lot items by newest `createdAt`, with ID as final tie-breaker.
+The home Drop-off list repeats General’s Parked records for convenience; it never creates records or adds occupancy. Ready excludes General here because those items already appear in its first section. Active is disjoint from Parked. **Someday** is a timing description for effective-undated Parked items, without a filter control or a separate stored/visual lot. Order lots as General first, undated custom lots next, then dated lots by ascending start date; tie-break on `sortOrder`, then ID. Order Active by newest `activatedAt`, Ready by earliest effective date then `createdAt`, and other item lists by newest `createdAt`, with ID as final tie-breaker.
 
 **Archive**
 
-- Searchable archived items plus archived lots and their contents. Restore/move supported. Normal search excludes archived records/lots; Archive search includes them.
+- Archived items plus archived lots and their contents, ordered newest first. Restore/move supported. No search control.
 
 **Settings**
 
 - Signed-in Google account, sync health (`Synced`, `Changes waiting`, `Offline`, `Unable to sync`), sign-out, export/import, deletion, reduced motion, installation instructions, optional default lot preference.
 - Make privacy and data ownership clear: cloud copy is private to the account, local edits work offline, server free tiers have usage ceilings.
 
-Mobile uses thumb-reachable bottom navigation (Lots / Now / Archive) immediately beneath the pinned bottom composer, respecting iOS safe areas. When the software keyboard appears, keep the composer above the keyboard and hide or compress navigation; never let it cover the input. Desktop uses the landscape and compact navigation controls, with no permanent sidebar; preserve keyboard shortcuts and access to every destination (Section 4.7). Avoid adding another dashboard merely to display counts.
+Mobile folds Lots / Drop-off zone / Archive / Settings into the top-right navigation popover. The bottom contains one pinned composer, respecting iOS safe areas. When the software keyboard appears, keep the composer above the keyboard and hide or compress navigation; never let it cover the input. Desktop uses the landscape and compact navigation controls, with no permanent sidebar; preserve keyboard shortcuts and access to every destination (Section 4.7). Avoid adding another dashboard merely to display counts.
 
 ## 4. Main screen details
 
 ### 4.1 Collapsed lot view: an actual tiny parking lot
 
-A collapsed lot is a **readable, compact top-down pixel-art parking illustration**, following Section 4.6. Render with ordinary HTML/CSS and inline SVG on a shared logical pixel grid; bundle any supporting assets locally. The component must:
+A collapsed user-created lot is a **readable, compact top-down pixel-art parking illustration**, following Section 4.6. General is the explicit exception: render it as the open Drop-off list in Section 4.5. Render with ordinary HTML/CSS and inline SVG on a shared logical pixel grid; bundle any supporting assets locally. The component must:
 
 - Show a **header** with lot name, time-window label, and `occupied / capacity` when limited.
 - Show **distinct parking spaces** and a recognizable pixel-art compact car or truck for every parked item represented.
 - Show **empty spaces** when the lot has a capacity; occupancy must match the sum of parking-space units used by **Parked** items, including Ready items.
-- Handle unlimited lots and the **Someday** grouping with the same top-down lot design. Fit visible cars by reducing *visual scale* as count grows, while maintaining compact/truck relative size. Use a minimum legible visual scale, then bounded preview plus `+N cars`; never imply a maximum. The count in the header remains authoritative.
+- Handle unlimited user lots with the same top-down lot design. Fit visible cars by reducing *visual scale* as count grows, while maintaining compact/truck relative size. Use a minimum legible visual scale, then bounded preview plus `+N cars`; never imply a maximum. The count in the header remains authoritative.
 - For limited lots with many spaces, scale the drawing to the available width until a legibility threshold, then render a bounded preview (e.g., 6–8 spaces) and a clear `+N more` indicator. Never hide the true total or imply all spaces are visible.
 - Clearly distinguish an empty lot, available capacity, at-capacity, and over-capacity. Do not use red shame signaling.
 - Be tappable/clickable to expand. Keyboard and screen-reader users should get a text label like “Post Surgery, 3 of 5 spaces occupied, opens Tuesday, expand.”
@@ -185,14 +185,14 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 **Happy path:** open → type → Enter (or Park) → done. No required extra step.
 
-- Default lot: **General**, unless user explicitly selects another; remember last-used lot only as an opt-in setting.
-- If a lot is selected, show a compact destination chip next to the composer. One tap changes destination.
+- Automatic destination: a deliberately selected lot first, otherwise the longest matching custom lot name, otherwise create/reuse a calendar lot for the parsed revisit date, otherwise **General / Drop-off zone**. Remember last-used destination only as an opt-in setting. Calendar IDs are deterministic (`date-{precision}-{ISO date}`), shared across devices. Reuse reopens an archived calendar lot; a different archived custom lot is never silently reopened.
+- Show the selected or inferred destination above the writing bar while there is text or an explicit destination. Reset returns to automatic routing; Park here in a lot panel selects that lot. The idle composer is one line with no extra hint row.
 - Suggest an existing lot when the text confidently matches its name, but **never silently override a deliberate lot selection**.
 - If there is no explicit date, an idea in a future lot inherits the lot's start date for eligibility; in a permanent lot it is Someday.
-- Optional parsed date chips appear before saving. They are reversible and must not block a plain-text save.
+- Show the extracted title and date destination before saving. Keep date in title preserves the literal phrase; quoting the full capture also preserves it. A confident date creates or reuses a date lot atomically with the captured item and queue entries.
 - Desktop: use the same compact floating composer at the bottom center of the window, with bounded width rather than a full-width input. Retain the destination, vehicle-size controls, and Park interaction. Enter parks; Shift+Enter inserts a newline; `/` focuses the composer when not typing; Escape closes menus/panels.
 - Mobile: a persistent **bottom-anchored writing bar**, with a nearby 1-tap **Compact / Big idea** toggle (car/truck), destination chip, and morphing Enter/Park button, all reachable above the keyboard.
-- Vehicle size defaults to **Compact** until explicitly switched, so capturing stays one action. Toggle before or after saving without opening details. The submit control uses a crisp pixel-art upward arrow from the same grid/palette as the vehicles, with accessible name **Park idea**; avoid a visually unrelated stock icon. Pointer hover may add a subtle highlight on devices that support hover; keyboard focus and touch pressed states provide equivalent feedback.
+- Vehicle size defaults to **Compact** until explicitly switched, so capturing stays one action. Toggle before saving; after saving use `/set "Title" size = big` or the details sheet. Do not add a size button to every row. The submit control uses a crisp pixel-art upward arrow from the same grid/palette as the vehicles, with accessible name **Park idea**; avoid a visually unrelated stock icon. Pointer hover may add a subtle highlight on devices that support hover; keyboard focus and touch pressed states provide equivalent feedback.
 - Immediately return focus after a successful save, ready for the next idea.
 - Confirm with quiet feedback (“Parked in Robotics · Undo”). Capture Undo is available for 10 seconds and archives the newly created idea with reason `dismissed`; it never hard-deletes text. Use a normal compensating mutation and preserve later edits if they conflict.
 
@@ -207,7 +207,7 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 1. Snapshot the submitted text, destination lot ID, vehicle size, and submit-button rectangle for this submission. Commit the idea and outgoing mutation together in account-scoped IndexedDB. On failure, retain the draft and show an error; do not morph or drive.
 2. After commit, update occupancy and clear only the submitted draft. Preserve any newer typing. Keep focus in the composer and immediately restore a usable arrow button; neither the morph nor the journey disables subsequent input/submission. Show the text confirmation and Undo immediately after commit; the ten-second Undo window starts then.
 3. At the button’s exact screen position, its pixel-art visual surface continuously transforms into the selected top-down compact car or truck. Show intermediate shape changes that connect arrow/button to vehicle; an abrupt icon replacement or crossfade alone is insufficient. Use a transient visual layer matched to the button’s bounds so the real semantic button can remain usable. The input text/card never becomes the car.
-4. The vehicle leaves the bar, joins the visible road/side lane, and drives toward **this idea’s actual lot**. Derive the path from current road connections, lot entrance, and parking geometry. Use turns and heading changes that follow the route, then align the vehicle with its assigned visible space. Do not use one arbitrary path for every lot or fly directly across buildings/water when a visible road route exists.
+4. The vehicle leaves the bar, joins the visible road/side lane, and drives toward **this idea’s actual lot**. Derive the path from current road connections, lot entrance, and parking geometry. Use turns and heading changes that follow the route, then align the vehicle with its assigned visible space. For General, the target is the actual left-facing car beside the new Drop-off title; it has no parking bay or capacity illustration. Do not use one arbitrary path for every lot or fly directly across buildings/water when a visible road route exists.
 5. For a visible, represented destination, show the vehicle entering its reserved visual space, then hand off to the static parked vehicle and briefly highlight the lot. Arrival adds visual feedback only; it does not repeat the local-save announcement or restart Undo. Keep pending/synced status separate. Driving is feedback for a completed local save, not another lifecycle state or cloud acknowledgement.
 
 #### Route, rendering, and interruption contract
@@ -226,11 +226,11 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 ### 4.5 Thumb-first layout and front-end design bar (core V1)
 
-**Information above, actions below:** On mobile, scrollable content consists of the **Drop-off zone** near the top, then collapsible top-down **parking lots** (or the alternative Someday view). The persistent bottom action rail contains the composer above compact tab navigation. Desktop uses the generated landscape, floating composer, and panels in Section 4.7; it does not stretch this mobile rail across the window. The rail respects `env(safe-area-inset-bottom)` and mobile viewport changes; on iOS when the keyboard opens, preserve visibility of the composer and collapse/hide the tab rail. Avoid obscuring focused text and avoid an enormous permanent footer.
+**Information above, actions below:** On mobile, scrollable content consists of the **Drop-off zone** near the top, then collapsible top-down **parking lots**. The persistent bottom action rail contains one composer; navigation stays in the top-right popover. Desktop uses the generated landscape, floating composer, and panels in Section 4.7; it does not stretch this mobile rail across the window. The rail respects `env(safe-area-inset-bottom)` and mobile viewport changes; on iOS when the keyboard opens, preserve visibility of the composer and keep navigation out of the keyboard area. Avoid obscuring focused text and avoid an enormous permanent footer.
 
-**Drop-off zone interaction:** Only rows with `kind: task` have a completion button. A row contains a small car hit target and readable task title. **Tap the car** to mark the task complete (archive with reason `completed`), then animate the car **driving away** and show a short **Undo** action; **tap the title/row text** to open details instead. These must be distinct hit areas and screen-reader actions. For `kind: idea`, tapping its vehicle opens details and never completes it. An explicitly marked task can be completed at either vehicle size. If a parked-ready item is completed, its parking capacity is released; if the item was Active, it was already excluded from occupancy. Animate only after a successful local transaction and queue the synced change. Undo remains available for 10 seconds, with its before-image and expiry persisted locally. It queues a compensating mutation even if completion has synced. Undo restores only the prior lifecycle fields (`status`, `activatedAt`, `archivedAt`, `archiveReason`) subject to current lot/capacity rules; if restoration is blocked, retain the before-image in Needs attention and offer destination/limit choices. Do not overwrite subsequent edits; offer explicit conflict resolution. After expiry, ordinary Restore remains available in Archive.
+**Drop-off zone interaction:** Only rows with `kind: task` have a completion button. The home Drop-off is a to-do list placed directly on the grassy landscape, above the dated lots. It is neither a parking lot nor a white/cream rectangular card: no miniature bays, duplicate cars, or enclosing panel. Every General Parked item appears once, newest first, with a left-facing car or truck on the left and its readable title beside it. Give the car a minimum 44×44px hit target, preserve long-title wrapping, and grow the clearing before positioning subsequent lots. **Tap the car** to mark the task complete (archive with reason `completed`), then animate that exact car **driving off the left edge of the viewport** and show a short **Undo** action; **tap the title/row text** to open details instead. These must be distinct hit areas and screen-reader actions. For `kind: idea`, tapping its vehicle opens details and never completes it. An explicitly marked task can be completed at either vehicle size. If a parked-ready item is completed, its parking capacity is released; if the item was Active, it was already excluded from occupancy. Snapshot the tapped vehicle’s artwork, orientation, and viewport bounds before local persistence removes the row. Animate only after a successful local transaction and queue the synced change. Use a noninteractive, assistive-technology-hidden overlay, translating left for 280ms with the shared strong ease-out curve. The remaining rows update immediately. Undo, navigation, scrolling, viewport resize, and unmount remove the overlay; reduced motion uses the same completion and Undo without travel. Animation failure never rolls back the saved completion. Undo remains available for 10 seconds, with its before-image and expiry persisted locally. It queues a compensating mutation even if completion has synced. Undo restores only the prior lifecycle fields (`status`, `activatedAt`, `archivedAt`, `archiveReason`) subject to current lot/capacity rules; if restoration is blocked, retain the before-image in Needs attention and offer destination/limit choices. Do not overwrite subsequent edits; offer explicit conflict resolution. After expiry, ordinary Restore remains available in Archive.
 
-**Vehicle semantics:** Every idea has a 1-tap, keyboard-accessible `Compact` or `Big idea` selector. Compact = 1 parking-space unit, truck = 2 *adjacent* units in a conceptual grid. Adjacency is visual only: repack the miniature on changes, allow a truck to span a row, and never reject parking because a decorative grid is fragmented. Capacity is determined solely by total space units. This is a **visual/capacity size**, not a priority, estimate, or deadline. Changing size on an already parked idea immediately updates capacity; apply strict-capacity checks on device and server. If a strict lot cannot fit a newly enlarged truck, do not lose the idea: show an option to keep compact, move lots, or change capacity. Trucks and compact cars stay visually distinguishable at every zoom level. A one-space remainder cannot physically fit a two-space truck even if car-count limit would appear available.
+**Vehicle semantics:** Capture has a keyboard-accessible `Compact` / `Big idea` selector; existing items expose size in details and the single-line command. Compact = 1 parking-space unit, truck = 2 *adjacent* units in a conceptual grid. Adjacency is visual only: repack the miniature on changes, allow a truck to span a row, and never reject parking because a decorative grid is fragmented. Capacity is determined solely by total space units. This is a **visual/capacity size**, not a priority, estimate, or deadline. Changing size on an already parked idea immediately updates capacity; apply strict-capacity checks on device and server. If a strict lot cannot fit a newly enlarged truck, do not lose the idea: show an option to keep compact, move lots, or change capacity. Trucks and compact cars stay visually distinguishable at every zoom level. A one-space remainder cannot physically fit a two-space truck even if car-count limit would appear available.
 
 **Renderer:** Section 4.1 defines the shared miniature renderer. Scale the whole drawing, preserve compact/truck proportions, and use accurate vehicle/space counts when a preview is bounded. Miniature cars are decorative; expanded rows provide individual actions.
 
@@ -238,20 +238,20 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 **Apple-inspired interaction principles:** Place frequent actions in natural thumb reach; separate navigation from content; preserve familiar menu behavior and comfortable touch targets (~44×44pt); let contextual actions appear near their object; apply motion only to communicate state. Do not imitate Liquid Glass unnecessarily in a web app. Respect reduced motion, keyboard navigation, safe areas, screen readers, and focus. Avoid relying on hover or color alone.
 
-**Front-end acceptance process:** Self-review one exemplary mobile home screen before adding routes. Use the screenshot/device matrix in Section 13; fix overflow/alignment and retain visual baselines. Remove filler copy and unrelated decoration; retain the sparse environmental cues required by Section 4.6. Capture must be understandable without a tutorial paragraph.
+**Front-end acceptance process:** Self-review one exemplary mobile home screen before adding routes. Use the screenshot/device matrix in Section 13; fix overflow/alignment and retain visual baselines. Remove filler copy and unrelated decoration; retain the coastal environmental cues required by Section 4.6. Capture must be understandable without a tutorial paragraph.
 
 ### 4.6 Visual direction: coastal Silicon Valley in pixel art
 
 **Design goal:** Park feels like a carefully crafted 1990s Silicon Valley world seen through a classic top-down arcade game. Pixel art supplies its character; modern controls keep capture, reading, and editing simple.
 
-**Reference and precedence:** The [concept montage](references/pixel-coastal-task-manager-montage.png) is loose visual inspiration for atmosphere, palette, perspective, and composition. It is not a pixel-perfect layout or interaction contract. Follow this written specification wherever the image differs. Make independent choices about dimensions, spacing, controls, and responsive layout. Mockup captions, sample text/dates/counts, and depicted controls do not add requirements.
+**Reference and precedence:** The [concept montage](references/pixel-coastal-task-manager-montage.png) is the primary visual target for atmosphere, palette, perspective, artwork, and composition: match the drawings as closely as practical while keeping the interface usable. The explicit Drop-off list and leftward completion requirements in Section 4.5 supersede the montage’s pictorial Drop-off parking lot. Functional behavior and accessibility still follow this written specification. Adapt dimensions and spacing for real text and viewport sizes without replacing the coastal world with generic cards. Mockup captions, sample text/dates/counts, and depicted controls do not add requirements.
 
-- **World and palette:** Use blue water and a restrained coastline along the left edge of the Lots scene, with low-rise offices, paved lots, tree-lined streets, and understated 1990s suburban architecture. Establish these cues with sparse, reusable details; avoid the montage’s dense vegetation. Use a shared palette of water blues, greens, asphalt/building neutrals, light readable surfaces, and a few vehicle accents. Define exact color tokens during implementation and verify contrast.
+- **World and palette:** Use blue water and a restrained coastline along the left edge of the Lots scene, with low-rise offices, paved lots, tree-lined streets, and understated 1990s suburban architecture. Use richer layered pixel foliage, tree-lined plot edges, shaded vehicles, asphalt bays, and a blue shoreline to approach the drawings. Keep a clear grassy area behind the Drop-off list and exclude the entire tree canopy from text and controls. Cluster scenery in the remaining land instead of scattering it over content. Use a shared palette of water blues, greens, asphalt/building neutrals, light readable surfaces, and a few vehicle accents. Define exact color tokens during implementation and verify contrast.
 - **Pixel-art system:** Lots, compact cars, trucks, roads, buildings, trees, and shoreline share one top-down perspective, logical pixel grid, outline weight, palette, and lighting direction. Use crisp stepped shapes and restrained shading; avoid mixing painterly terrain, smooth vector cars, and unrelated icons. Xevious informs the visual language, not combat, scoring, or gameplay. Create original Park artwork rather than reproducing game assets.
 - **Brand and text:** Display the wordmark as lowercase **`park.`**, including the period, in distinctive pixel lettering. A locally bundled pixel font or custom grid-based SVG lettering is acceptable; give an SVG wordmark the accessible name “Park.” Use the readable UI family for all idea text, labels, dates, menus, and inputs. Never rasterize functional text or use a pixel font for body copy.
-- **Integrated controls:** Carry the scene’s colors, vehicle motifs, and restrained edge treatment into the composer, buttons, chips, navigation, menus, and sheets. Keep familiar control behavior and clear focus/pressed/disabled states. Use calm opaque surfaces behind text; scenery must not compete with content. Pixel styling must not shrink hit areas or force every control into a rigid square shape.
+- **Integrated controls:** Carry the scene’s colors, vehicle motifs, and restrained edge treatment into the composer, buttons, chips, navigation, menus, and sheets. Keep familiar control behavior and clear focus/pressed/disabled states. Use calm opaque surfaces for individual buttons, menus, panels and the composer; the navigation wrapper stays transparent at every scroll position. Never add a full-width opaque header on scroll. Keep the Drop-off list directly on quiet grass, with scenery excluded from readable content. Pixel styling must not shrink hit areas or force every control into a rigid square shape.
 - **Responsive restraint:** Lots are data-driven; surrounding scenery is decorative. Mobile keeps the compact scrolling lot presentation. Desktop generates the navigable landscape in Section 4.7. On narrow screens or at large text sizes, simplify the coastal margin and scenery before reducing usable content width, and use the mobile presentation when desktop panels no longer fit. The images alone do not require a map/list toggle or extra route.
-- **Function and motion:** Preserve the Lots/Now/Archive structure, readable Drop-off rows, bottom composer, capacity counts, and interactions in Sections 3–4.5. Decorative buildings, trees, boats, and roads never represent ideas or add tappable objects; only domain records determine occupancy. The montage’s pictorial drop-off does not replace the readable list or expand task-only completion. Animate only the specified user feedback; no ambient scrolling terrain, blinking scenery, or continuous water effects in V1.
+- **Function and motion:** Preserve the Lots/Drop-off zone/Archive structure, readable Drop-off rows, bottom composer, capacity counts, and interactions in Sections 3–4.5. Decorative buildings, trees, boats, and roads never represent ideas or add tappable objects; only domain records determine occupancy. The montage’s pictorial drop-off does not replace the readable list or expand task-only completion. Animate only the specified user feedback; no ambient scrolling terrain, blinking scenery, or continuous water effects in V1.
 - **Implementation:** Use shared CSS/SVG components and grid-based art tokens rather than a screenshot background. Preserve crisp edges as the whole miniature scales; at small sizes, simplify detail and use the bounded-preview rule in Section 4.1 instead of rendering unreadable pixels. Bundle scene assets with the offline shell; no runtime image/font fetches or game engine. The reference PNG is documentation, not a production UI asset.
 
 ![Concept montage: blue water and shoreline at left, top-down lots with compact cars and trucks, pixelated park branding, and bottom capture controls. Layouts and captions are illustrative.](references/pixel-coastal-task-manager-montage.png)
@@ -264,19 +264,21 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 
 #### Layout and navigation
 
-- Keep blue water/coastline as a stable visual anchor along the left side; developed land extends to the right. Place the pixelated **`park.`** wordmark within the water area rather than a traditional header. On a constrained viewport, simplify this margin instead of squeezing functional content.
+- Keep blue water/coastline as a stable visual anchor along the left side; developed land extends to the right. Place the pixelated **`park.`** wordmark at the upper-left coastal edge rather than in a traditional header. It stays white with a subtle dark edge for legibility over land or water; never reshape the coastline to follow it while scrolling. On a constrained viewport, simplify this margin instead of squeezing functional content.
 - Arrange lots across land with roads/gutters separating them. Each plot has a readable, selectable label showing the actual lot name and authoritative vehicle/space counts, plus timing where applicable. Size and layout follow the shared compact/truck renderer and bounded-preview rules; never invent cars or parking capacity to fill the world.
 - Anchor the compact floating capture bar at the bottom center of the window, above the landscape, using the same controls, visual language, and save/morph behavior as mobile. Set a maximum width; reserve clearance so panels and map content do not cover it. Opening a lot does not silently change the capture destination; an explicit **Park here** action may select it and focus the composer.
-- Use one compact navigation group for **Lots**, **Now**, **Archive**, **Settings/account**, search, and **New Lot**; avoid a permanent sidebar or redundant toolbars. Lots remain directly selectable in the landscape. Keep the Drop-off preview readable; on desktop it may be a compact floating list, with **View all** opening Now. Navigation and labels must be discoverable without hover or memorized shortcuts.
-- When content exceeds the viewport, scroll the land horizontally (and vertically when necessary), using standard scrollbars/trackpad behavior and keyboard-accessible controls. The coastal anchor remains visible. Provide search/a lot finder that can reveal and focus a selected offscreen lot. No zoom feature, minimap, drag-only panning, or infinite-world engine is required. Do not shrink the entire map to fit every lot; use bounded previews within plots and render only visible/nearby scenery.
+- Use one compact navigation group for **Lots**, **Drop-off zone**, **Archive**, **Settings/account**, and **New Lot**; avoid a permanent sidebar or redundant toolbars. Lots remain directly selectable in the landscape. Keep every General Parked title readable in the open Drop-off list, with the full Drop-off destination available from navigation or `/drop-off`. Navigation and labels must be discoverable without hover or memorized shortcuts.
+- When content exceeds the viewport, scroll the land vertically along its coastline, using standard scrollbars/trackpad behavior and keyboard-accessible controls. The coastal anchor remains visible. Expose each lot as a focusable named button and allow direct access by `/edit-lot "Name"`. Do not add search or a finder. No zoom feature, minimap, drag-only panning, or infinite-world engine is required. Do not shrink the entire map to fit every lot; use bounded previews within plots and render only visible/nearby scenery.
 
 #### Stable, data-driven generation
 
-- Generate plots from the current account’s non-archived lots, including General, using local records. Create/archive/restore/rearrange operations update the landscape after local commit and sync through the existing domain queue. Roads, sparse office buildings, trees, and other scenery adapt to plot boundaries; they never add records, capacity, or required interactions. No network request is needed to generate a scene.
-- Use `lot.sortOrder` as a stable nonnegative integer **layout slot**, also determining mobile order. Seed General in slot 0. Assign new lots the next unused slot after the maximum of stored and resolved display slots across all non-deleted lots, including archived lots; do not renumber existing lots on create/archive/delete. Archive hides a plot but retains its slot for restoration. For explicit rearrangement, offer an accessible **Move on map** action to choose a slot unused by both stored assignments and resolved display positions, including archived reservations; dragging is optional. Moving updates `sortOrder` as a normal versioned lot mutation. Reserve archived slots so restoration does not displace another lot.
-- Map slots into a fixed number of logical row bands and additional columns to the right. Choose/document the row count and plot/grid dimensions once for V1; viewport resizing changes the visible region, not stored slot assignments. Each cell reserves road/label clearance and supports the shared capacity-aware preview, including adjacent two-unit trucks. Item count or capacity changes may repack a plot’s interior but must not relocate unrelated lots.
-- Derive scenery deterministically from lot IDs/slots and shared art tokens. Reloading identical records yields identical lot/building placement. Avoid random generation on render or viewport-dependent global repacking. For concurrent slot collisions, first reserve every requested slot (including archived lots); the lowest lot ID wins each tie. Place remaining tied lots in ID order into the next unreserved slots and reserve those display positions too. This fallback is display-only: preserve every record and expose a rearrangement action without silently rewriting stored order. Filtering hides plots without repacking other slots. A newly discovered collision may relocate a conflicted lot through this fallback; this is the explicit exception to placement stability, not permission to repack unrelated plots.
-- Empty and sparse accounts still show General in a restrained coastal setting. At 50+ lots and 1,000+ ideas, preserve legible previews and stable navigation rather than filling the viewport with microscopic vehicles. The Someday alternative may use a generated summary scene, but must not alter actual lot positions, associations, or occupancy.
+- Generate parking plots from the current account’s non-archived user lots. General remains the protected storage destination but renders as the separate open Drop-off list, never a parking plot. Create/archive/restore/rearrange operations update the landscape after local commit and sync through the existing domain queue. Connected coastal/inland roads, side streets, varied office/warehouse/courtyard buildings, trees, shore rocks, and piers adapt to plot boundaries; they never add records, capacity, or required interactions. No network request is needed to generate a scene.
+- `sortOrder` is a persistent nonnegative tie-break/layout preference. Seed General at 0, assign new lots the next unused slot, and retain archived reservations. Explicit Move on map or `/set-lot "Lot" slot = N` changes this value through the normal queue. Resolve duplicate slots deterministically without dropping records.
+- Use one column below 700px, two from 700–999px, and up to three wider-screen columns. Derive plot widths from the land available after sampling the shoreline across the entire measured content height, including long Drop-off lists and expanded lots. Reserve the coastal road, sidewalk and scenery overhang before placing content. Never clamp a plot back toward the water or hide its overflow behind a land mask. `.map-lots` must not use coastline clipping.
+- Place Drop-off in its own band at 132px, at least 110px tall, then a neighborhood parcel before the first user-lot band. Separate later lot bands with building parcels and connected side streets. Building placement, footprint size, roof type and courtyard variants use stable local seeds; exclude buildings and tree canopies from every content rectangle. They are scenery, not new user lots.
+- Generate the shoreline from several seeded spatial scales: broad coves, smaller headlands, and irregular shore detail. Sea bands vary in width; rocks and occasional wooden piers add coastal detail. The world-coordinate shoreline is independent of scroll position. Roads and capture animation share the same fixed coastal geometry. Scrolling only moves the camera; it never changes the land shape or turns navigation into an opaque bar.
+- Reloading identical records at the same width yields identical plot and scenery positions. Adding, archiving, changing a date, growing Drop-off, or crossing a responsive breakpoint may move subsequent bands; stored slots and record associations remain intact. Capture/animation never scrolls the map. Scenery remains deterministic and richer around plot boundaries, with office details confined to available land. Do not place trees over the list or labels.
+- Empty and sparse accounts still show the Drop-off heading and a short capture prompt directly on the grass; do not invent an empty parking lot for General. At 50+ lots and 1,000+ ideas, preserve legible previews and stable navigation rather than filling the viewport with microscopic vehicles. The Someday alternative may use a generated summary scene, but must not alter actual lot positions, associations, or occupancy.
 
 #### Floating views and accessibility
 
@@ -286,6 +288,54 @@ Keep large touch targets and comfortable scrolling. On desktop, support keyboard
 - At widths or zoom levels where the map and a useful panel cannot coexist, switch to the mobile list/sheet presentation. Responsive changes must not move ideas between lots, change capacity, lose selection/drafts, or require interaction with tiny pixel art.
 
 ![Desktop concept: water and pixelated park wordmark on the left, labeled lots across a coastal office-park landscape, a compact bottom-centered composer, and a floating lot panel at right. Arrangement and sample content are illustrative.](references/pixel-park-map-dashboard.png)
+
+### 4.8 Single-line actions and reduced friction
+
+The same bottom composer accepts plain capture and explicit `/` commands. Plain text always captures; commands run only when the unquoted input begins with `/`. Quoting a whole thought preserves literal slash text. Parse locally without AI or network calls. Enter or the existing arrow is the only submit action; previews and example selection never execute a command.
+
+Use exact, case-insensitive normalized titles/names or stable IDs. Require quotes around item/lot names in field and bulk commands. If titles collide, do not pick the first match: retain the command and ask for the Action ID exposed in details. Unknown verbs, missing records, invalid fields/dates, and domain failures retain the input and show a correction. Do not save invalid commands as thoughts. IME composition never submits prematurely; Shift+Enter remains a newline.
+
+| Job | Single-line syntax |
+| --- | --- |
+| Capture, optionally dated | `English outline tomorrow` |
+| Create custom lot | `/lot Post surgery for 2 weeks starting Tuesday max 5` |
+| Start, complete, archive, restore | `/start "Title"`, `/complete "Title"`, `/archive "Title"`, `/restore "Title"` |
+| Edit item | `/set "Title or ID" field = value` |
+| Item fields | `title`, `notes` (use `none` to clear), `lot` (exact name/ID), `date` (capture date grammar, `someday` or `none`), `size` (`compact`/`small`/`big`/`truck`), `kind` (`idea`/`task`) |
+| Edit lot | `/set-lot "Lot or ID" field = value` |
+| Lot fields | `name`, `start`, `end` (inclusive; exact date grammar, `none`/`someday` to clear), `capacity` (1–99 or `none`), `policy` (`soft`/`strict`), `accent` (`blue`/`green`/`gold`/`coral`), `slot` (nonnegative integer) |
+| Archive/restore lot | `/archive-lot "Lot"`, `/restore-lot "Lot"` |
+| Keep ended lot as is | `/keep-lot "Lot"` |
+| Move every parked item | `/move-all "Source" to "Destination"` |
+| Open details/manual editor | `/edit "Title"`, `/edit-lot "Lot"` |
+| Navigate | `/lots`, `/drop-off`, `/archive`, `/settings` |
+| Preferences | `/prefer reduced = on`, `/prefer remember = off`, `/prefer destination = Lot name` |
+| Sync/reconcile | `/sync`, `/resolve "Mutation ID" mine`, `/resolve "Mutation ID" server` |
+| Backup and account | `/export`, `/import`, `/sign-out`, `/delete-account` |
+| Undo/help | `/undo`, `/help` |
+
+Preference switches accept `on`/`off`; destination changes the current destination and stored preferred lot, with persistence on reopening governed by remember. An explicit preferred destination must name an available lot. Item/lot field commands replace one user-facing field plus its required derived metadata (date precision or normalized name key); they do not silently change other user-facing fields or infer task intent. All validation and capacity rules apply, including General protection and archived/ended destinations.
+
+Commands read the latest records and commit writes plus queue entries in one IndexedDB transaction. Bulk moves roll back completely if any item cannot fit; the server still acknowledges each queued mutation separately under the existing sync protocol. Completion and capture share the existing ten-second Undo; other actions use explicit inverse commands. `/undo` operates on the latest unexpired persisted entry and cancels its visual journey. Failed or conflicting Undo preserves recoverable state.
+
+Navigation, help, export, and preferences do not generate domain writes. Import opens the native file picker and retains the existing validated preview/merge/replace workflow. Sign-out uses the pending-work safeguards. Delete-account opens the existing confirmation, export, and fresh-authentication flow: typing a command never bypasses those protections. Conflict resolution requires the visible mutation ID and explicit choice; show alternatives and IDs in Settings before replacement. Authentication, native file selection, destructive import, and account deletion retain necessary system/confirmation steps. These are the defined exceptions to a single submit completing the action.
+
+Typing `/` reveals a bounded, scrollable help list with actionable examples. Selecting an example fills the composer for editing; it never submits. Keep one primary submit control, one optional capture-size toggle, quiet navigation, and one New lot entry; avoid repeated size buttons or action toolbars on each row. Command navigation and previews update immediately without decorative animation. Capture/completion keep their existing motion contract; command completion may use text confirmation when no visible vehicle target exists.
+
+**Acceptance:** From the composer, create a lot; capture a thought; move, postpone, start, complete and restore it; edit every supported field; archive/restore a lot; navigate; change preferences; export; and invoke protected account/import flows. Verify duplicate titles, unknown verbs, invalid dates/fields, strict-capacity rollback, archived/ended destinations, IME, rapid repeated submissions, refresh persistence, offline changes, and Undo. Every General Parked item remains readable on home, including 30+ items and long titles, with no horizontal overflow at 320/390/768/1440px. Failed commands do not clear the draft or show save motion.
+
+```mermaid
+flowchart LR
+  Input[One line] --> Parse{Slash command?}
+  Parse -->|No| Capture[Plan capture]
+  Parse -->|Yes| Command[Validate action]
+  Command -->|Writes| Local[Atomic local commit]
+  Capture --> Local
+  Command -->|Navigation or utility| Utility[Run local action]
+  Local --> Feedback[Confirm and clear draft]
+  Utility --> Feedback
+  Command -->|Invalid| Retain[Keep draft and explain]
+```
 
 ## 5. One-sentence lot creation — a defining feature
 
@@ -364,7 +414,7 @@ To avoid race conditions, check strict occupancy **inside the same IndexedDB tra
 
 ### 7.1 Individual idea dates
 
-Support these revisit phrases: `tomorrow`, `next week`, `in N days/weeks`, `in [month]`, `after [month]`, `on [explicit date]`, and `someday`. Apply the same absolute-date grammar as Section 5.2. Parse only a trailing phrase; quoted text is literal. The quick-capture parser only extracts a **confident revisit phrase**; “finish by Friday” is a deadline-like phrase, not an automatic revisit date.
+Support these revisit phrases: `tomorrow`, `next week`, `in N days/weeks`, `in [month]`, `after [month]`, `on [explicit date]`, and `someday`. Apply the same absolute-date grammar as Section 5.2. Parse a confident phrase at either edge; leading weekdays require punctuation (for example `Friday: read a book`) to preserve titles such as Friday Night Lights. Leading today/tomorrow/on/next/in phrases can stand alone. Quoted text is literal. The quick-capture parser only extracts a **confident revisit phrase**; “finish by Friday” is a deadline-like phrase, not an automatic revisit date.
 
 - Store ISO **local calendar dates** (`YYYY-MM-DD`), not a UTC midnight timestamp.
 - “In December” when captured in October 2026 means `2026-12-01` with precision `month` and label `December 2026`.
@@ -413,7 +463,7 @@ type Idea = {
   title: string;
   notes: string;
   status: ItemStatus;
-  kind: 'idea' | 'task';         // default idea; explicit completion intent
+  kind: 'idea' | 'task';         // new captures default task; existing records unchanged
   vehicleSize: 'compact' | 'truck'; // compact=1 spot; truck=2 spots, editable
   lotId: string;                  // defaults to built-in General ID
   revisitOn: ISODate | null;     // individual not-before; does not include lot start
@@ -601,7 +651,7 @@ Planning sources: [Workers limits](https://developers.cloudflare.com/workers/pla
 
 ### 9.5 Free-tier operation (required V1)
 
-- Render/search/parse locally; sync deltas in bounded batches. Index owner-scoped queries, page results, and measure rows read/written per endpoint.
+- Render/parse locally; sync deltas in bounded batches. Index owner-scoped queries, page results, and measure rows read/written per endpoint.
 - Validate payload sizes and enforce documented per-account/login rate limits. Generous, visible fair-use limits must prevent one client from consuming the entire free tier. No media uploads.
 - Monitor requests, CPU, D1 reads/writes, database size, and errors with free provider tools. Forecast headroom from measured usage; no paid analytics dependency.
 - During server outages or quota exhaustion, display `Saved on this device · Syncing later`; preserve cached browsing, capture, exports, and queued edits. Do not show Synced or sign out because of an outage. New devices cannot retrieve uncached data until service returns.
@@ -644,7 +694,7 @@ Repository interfaces decouple UI from storage; isolate Cloudflare access within
 3. Build a structured draft with recognized spans removed to derive the name. Never aggressively strip words in the middle of a name.
 4. Resolve absolute/relative dates against a passed-in `today` (testable clock).
 5. Validate duration, boundary ordering, capacity, and duplicate names.
-6. Return chips and warnings; do not auto-create until the user presses Create.
+6. Return chips and warnings; do not auto-create until explicit submission.
 7. Persist structured lot fields; do not call a text-generating AI service.
 
 **Example parse contract:**
@@ -703,14 +753,14 @@ If parsing confidence is low, show the original phrase plus manual edit chips ra
 | --- | --- |
 | Capture | One-field, one-submit capture with built-in General default |
 | Lots | Create, edit, expand/collapse, archive safely, and move cars |
-| One-line creation | Deterministic lot parser, editable date/capacity chips, manual fallback |
+| One-line actions | Deterministic capture/lot parsing, lifecycle/field/navigation commands, visible preview, manual fallback |
 | Theme | Coastal Silicon Valley pixel art (Sections 4.6–4.7), `park.` wordmark, shared renderer, stable generated desktop landscape, compact cars/two-space trucks |
 | Interaction | Bottom composer with continuous pixel-arrow-to-vehicle morph, geometry-routed journey/arrival, immediate reuse, and task drive-off/Undo |
 | Visual QA | Coherent pixel-art system, restrained scenery, readable UI typography; screenshot and mobile safe-area/keyboard checks |
 | Capacity | Unlimited/soft cap and optional strict cap, including server-side atomic checks |
 | Scheduling | Lot start/end, individual idea not-before date, resurfacing, ended-lot review |
 | Lifecycle | Parked / Active / Archived, postpone and restore |
-| Browsing | Lots-first home, Now, Archive, search; labeled desktop map navigation and floating panels, no permanent sidebar |
+| Browsing | Lots-first home, Now, Archive; labeled desktop map navigation and floating panels, no permanent sidebar |
 | Accounts | Google sign-in for individual accounts, secure sessions, sign-out, account deletion |
 | Privacy | Every server operation owner-scoped; no shared content and no homemade passwords |
 | Sync | Offline local CRUD, batched idempotent sync, conflicts, pagination, transparent status |
@@ -740,7 +790,7 @@ Configure Google Identity Services, Worker static assets + `/api`, D1 migrations
 
 ### Phase 3 — Thumb-first parking lot visual experience
 
-Build and self-review an exemplary phone screen against Sections 4 and 13; fix it before expanding the UI. First establish the shared pixel grid, palette, vehicle artwork, readable UI type, `park.` wordmark, and sparse coastal environment from Section 4.6. Implement bottom pinned composer/navigation, shared adaptive mini parking lots and a Someday grouping, compact and truck vehicle sizing, space-weighted capacity, drop-off list, the continuous submit morph and geometry-routed parking in Section 4.4, and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Implement the desktop slot-based landscape, labeled navigation, centered composer, and floating views in Section 4.7. Inspect iPhone and desktop screenshots; retain the required coastal setting while removing unrelated filler and excess scenery.
+Build and self-review an exemplary phone screen against Sections 4 and 13; fix it before expanding the UI. First establish the shared pixel grid, palette, vehicle artwork, readable UI type, `park.` wordmark, and closely matched coastal environment from Section 4.6. Implement bottom pinned composer/navigation, shared adaptive mini parking lots, compact and truck vehicle sizing, space-weighted capacity, drop-off list, the continuous submit morph and geometry-routed parking in Section 4.4, and drive-off completion with Undo, reduced-motion behavior, and server-side strict-capacity race protection. Implement the desktop chronological coastal landscape, labeled navigation, centered composer, and floating views in Section 4.7. Inspect iPhone and desktop screenshots; retain the required coastal setting while removing unrelated filler and excess scenery.
 
 **Exit:** `npm run test:e2e` passes on the local app; include task/idea tap behavior, Undo conflicts, and the screenshot matrix in Section 13. A 3-space lot displays correct occupancy; animation plays after a local commit; two devices competing for last spot produce a visible recoverable conflict, never lost text.
 
@@ -766,27 +816,27 @@ Configure free provider-dashboard monitoring/available alerts, load-test represe
 
 ### Core theme, parsing, and timing
 
-1. Plain text + Enter (or one mobile tap) parks an item immediately in the account's General lot; no mandatory settings or multiple screens.
+1. Plain text + Enter (or one mobile tap) parks an item immediately in the account's General lot when there is no date or named/selected destination; no mandatory settings or multiple screens.
 2. After local commit, the pixel arrow visibly transforms through intermediate shapes into the selected compact/truck, drives using current visible geometry toward the assigned lot, and enters its represented space. The composer is reusable before arrival; reduced motion and unavailable targets use the specified fallbacks.
-3. Collapsed mini lots and the Someday grouping scale visually while preserving compact/truck proportions and display true occupied/empty **space** counts; only Parked items (including Ready items) occupy spaces. Unlimited lots display a bounded preview.
+3. Collapsed mini lots scale visually while preserving compact/truck proportions and display true occupied/empty **space** counts; only Parked items (including Ready items) occupy spaces. Unlimited lots display a bounded preview.
 4. A truck uses two capacity units and visually spans two spaces; changing vehicle size recomputes capacity. Soft cap warns but permits over-capacity; strict cap prevents newly accepted overflow **server-side** even with concurrent devices.
 5. An item rejected from its strict lot after offline/concurrent conflict is preserved locally with a clear resolution action.
 6. `post surgery for 2 weeks starting tuesday` parsed on Oct 26, 2026 starts Oct 27, ends at start of Nov 10. Ambiguous phrases never silently create erroneous dates.
 7. Lot start can make parked items ready to revisit but never Active; a later item date overrides the lot start.
 8. Ended lots trigger a gentle review, no automatic deletion or moving. No overdue messages.
-9. Search, Now, Lots and Archive work with touch/keyboard and many ideas and lots.
+9. Now, Lots and Archive work with touch/keyboard and many ideas and lots.
 
 ### Thumb-first usability and visual quality
 
-Verify Sections 4.3–4.7 at 390×844 and 1440×900, plus a narrow 320px viewport and 200% text zoom. Save screenshots for empty, full, over-capacity, 30+ vehicles, long text, offline, and reduced-motion states. Test keyboard-open composition on an actual iPhone: focused input remains visible, safe areas are respected, and navigation does not cover it. Verify car-tap completion only for explicit tasks and title-tap details separately. Inspect for overflow and filler; screenshots alone cannot prove animation, keyboard, or offline behavior.
+Verify Sections 4.3–4.7 at 390×844 and 1440×900, plus a narrow 320px viewport and 200% text zoom. Save screenshots for empty, full, over-capacity, 30+ vehicles, long text, offline, and reduced-motion states. Test keyboard-open composition on an actual iPhone: focused input remains visible, safe areas are respected, and navigation does not cover it. Verify car-tap completion only for task-kind records (including the default new capture) and title-tap details separately. Inspect for overflow and filler; screenshots alone cannot prove animation, keyboard, or offline behavior.
 
 Visual direction passes when:
 
 - Lots, vehicles, environment, wordmark, and controls form one coherent pixel-art system with consistent perspective, proportions, and shading. Vehicles in motion match their parked versions.
-- The Lots scene conveys the coastal Silicon Valley setting without dense vegetation, busy scenery, or decoration that looks like stored ideas. Empty, full, and bounded-preview states remain distinguishable.
+- The Lots scene conveys the coastal Silicon Valley setting with varied buildings, connected streets, wooded plot edges and irregular coastline; scenery must never look like stored ideas or cover usable content. Empty, full, and bounded-preview states remain distinguishable.
 - Pixel lettering is confined to `park.`; functional text stays selectable, legible, and high-contrast on calm surfaces. Focus indicators and at least 44×44 CSS-pixel touch targets remain usable.
 - At 320px width and 200% text zoom, scenery yields to content. The composer, lot labels/counts, and readable Drop-off rows remain visible and operable; reduced motion removes travel without hiding state changes.
-- The montage is used for direction, not as a screenshot background or layout checklist. No map/list navigation, ambient animation, or completion behavior is added solely because it appears in the image. Scene assets work offline.
+- Match the montage’s coastal art direction closely, with the explicit open Drop-off list adaptation; never use the mockup as a screenshot background. No map/list navigation, ambient animation, or completion behavior is added solely because it appears in the image. Scene assets work offline.
 
 Capture animation additionally passes when:
 
@@ -798,8 +848,8 @@ Capture animation additionally passes when:
 Desktop behavior additionally passes when:
 
 - At 1440×900, the water/wordmark anchor, horizontally arranged lots, bounded bottom-centered composer, and floating lot panel coexist without obscuring controls. No permanent sidebar or stretched mobile rail appears.
-- Create, archive/restore, explicit rearrangement, capacity changes, reload, and viewport resize preserve unrelated lot placements. Concurrent slot collisions preserve all lots and give the same display order on both devices after sync. Scenery is generated locally and remains stable for identical data.
-- A 50+ lot fixture remains navigable by pointer, keyboard, search/finder, and assistive technology. Offscreen lots can be revealed deliberately; saves/animations never pan the map. Compacts/trucks remain legible and authoritative counts match domain data.
+- Reloading unchanged data at the same width preserves placement. Create/archive/date edits, growing Drop-off, and responsive column changes may move later bands according to the chronological layout; they never rewrite unrelated stored slots or records. Concurrent slot collisions preserve all lots and give the same display order on both devices after sync. Scenery is generated locally and remains stable for identical data.
+- A 50+ lot fixture remains navigable by pointer, keyboard, direct named commands, and assistive technology. Offscreen lots can be revealed deliberately; saves/animations never pan the map. Compacts/trucks remain legible and authoritative counts match domain data.
 - All full-list/detail/settings flows are accessible in bounded desktop panels, including focus return, Escape, draft preservation, and responsive fallback at 200% zoom. The composer stays usable when a nonmodal lot panel is open.
 - The desktop image adds no duplicate Someday lot, fake counts, real-world geography requirement, or unrelated controls. Only written requirements determine functionality; all reference images remain documentation assets.
 
